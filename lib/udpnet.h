@@ -63,15 +63,16 @@ private:
     void close();
     int recvfrom ( uint8_t* buf, uint16_t len, int flags, uint32_t* ipaddress, uint16_t* port );
 
+    UdpConfig _config;
+    bool   _disconReq;
     int _sockfdUcast;
     int _sockfdMcast;
+    uint8_t  _castStat;
     uint16_t _gPortNo;
     uint16_t _uPortNo;
     uint32_t _gIpAddr;
-    uint8_t  _castStat;
-    UdpConfig _config;
 
-    bool   _disconReq;
+
 };
 #endif
 #endif

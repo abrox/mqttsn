@@ -16,11 +16,15 @@
 #include <errno.h>
 #include <termios.h>
 
-UdpNet::UdpNet(const UdpConfig &config):_config(config),
+UdpNet::UdpNet(const UdpConfig &config):
+    _config(config),
     _disconReq(false),
     _sockfdUcast(-1),
     _sockfdMcast(-1),
-    _castStat(0)
+    _castStat(0),
+    _gPortNo(0),
+    _uPortNo(0),
+    _gIpAddr(0)
 {
 }
 

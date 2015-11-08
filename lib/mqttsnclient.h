@@ -143,23 +143,23 @@ private:
         NO_MESSAGE=1
     };
 
+    void handleMsgIn(uint8_t msgLen, message_type msg);
     uint16_t bswap(const uint16_t val);
     void send_message();
 
+    void handleSearchGTWTimeout();
+
     uint16_t _message_id;
     uint8_t topic_count;
+    uint8_t _gateway_id;
 
+    NetworkIf &_networkIf;
+    MqttConfig _mqttConfig;
+    FSMState _fsmState;
+    const char* _fsmStateName;
     uint8_t _message_buffer[MAX_BUFFER_SIZE];
     uint8_t _response_buffer[MAX_BUFFER_SIZE];
     topic topic_table[MAX_TOPICS];
-
-    uint8_t _gateway_id;
-    uint32_t _response_timer;
-    uint8_t _response_retries;
-    NetworkIf &_networkIf;
-    FSMState _fsmState;
-    const char* _fsmStateName;
-    MqttConfig _mqttConfig;
 
     typedef  void (MqttsnClient::*MqttMsgHdler)(const uint8_t *msg, uint8_t msgLen);
     struct msgHdlr{
@@ -177,7 +177,6 @@ private:
         TIMER_ARRAY_SIZE ///<Number of timers, must be last.
     };
 
-    void handleSearchGTWTimeout();
     ATimer _timers[TIMER_ARRAY_SIZE];
 
 

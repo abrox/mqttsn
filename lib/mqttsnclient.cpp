@@ -36,16 +36,14 @@ MqttsnClient::MqttsnClient(NetworkIf &networkIf, const MqttConfig &mqttConfig) :
 _message_id(0),
 topic_count(0),
 _gateway_id(0),
-_response_timer(0),
-_response_retries(0),
 _networkIf(networkIf),
 _mqttConfig(mqttConfig),
 _fsmState(INIT),
 _fsmStateName(NULL),
-_message_buffer({0}),
-_response_buffer({0}),
-_mqttMsgHdler({MESSAGE_HANDLER_CALLBACS}),
-_timers({CLIENT_TIMERS})
+_message_buffer{0},
+_response_buffer{0},
+_mqttMsgHdler{MESSAGE_HANDLER_CALLBACS},
+_timers{CLIENT_TIMERS}
 {
     memset(topic_table, 0, sizeof(topic) * MAX_TOPICS);
 
@@ -91,25 +89,26 @@ int16_t MqttsnClient::receiveMsg(uint8_t * buffer, const uint16_t buffSize, uint
 
     return rc2;
 }
-int16_t MqttsnClient::run(){
+void MqttsnClient::handleMsgIn(uint8_t msgLen, message_type msg)
+{
+    for (uint8_t i=0;i<HANDLER_ARRAY_SIZE;i++) {
+        if(_mqttMsgHdler[i]._id == msg){
+            CALL_ME(this,_mqttMsgHdler[i]._hdlr) (_response_buffer,msgLen);
+            break;
+        }
+    }
+}
 
+int16_t MqttsnClient::run(){
     uint8_t msgLen;
     message_type msg;
     int16_t rc;
 
     rc = receiveMsg(_response_buffer,MAX_BUFFER_SIZE,msgLen,msg);
 
-    if( rc==OK){
+    if(rc==OK) handleMsgIn(msgLen, msg);
 
-        for (uint8_t i=0;i<HANDLER_ARRAY_SIZE;i++) {
-            if(_mqttMsgHdler[i]._id == msg){
-                CALL_ME(this,_mqttMsgHdler[i]._hdlr) (_response_buffer,msgLen);
-                break;
-            }
-        }
-    }
-
-    for(uint8_t i=0;i< TIMER_ARRAY_SIZE;i++)_timers[i].run();
+    for(uint8_t i=0;i< TIMER_ARRAY_SIZE;i++) _timers[i].run();
 
     return 0;
 }
@@ -261,7 +260,7 @@ void MqttsnClient::register_handler(const uint8_t *m, uint8_t msgLen) {
     uint8_t index;
     find_topic_id(msg->topic_name, index);
 
-    if (index != 0xffff) {
+    if (index != 0xff) {
         topic_table[index].id = bswap(msg->topic_id);
         ret = ACCEPTED;
     }
