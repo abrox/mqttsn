@@ -53,14 +53,7 @@ THE SOFTWARE.
 #define QOS_MASK (FLAG_QOS_0 | FLAG_QOS_1 | FLAG_QOS_2 | FLAG_QOS_M1)
 #define TOPIC_MASK (FLAG_TOPIC_NAME | FLAG_TOPIC_PREDEFINED_ID | FLAG_TOPIC_SHORT_NAME)
 
-// Recommended values for timers and counters. All timers are in seconds.
-#define T_ADV 960
-#define N_ADV 3
-#define T_SEARCH_GW 5
-#define T_GW_INFO 5
-#define T_WAIT 360
-#define T_RETRY 15
-#define N_RETRY 5
+
 
 enum return_code_t {
     ACCEPTED,
