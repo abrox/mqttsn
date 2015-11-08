@@ -31,7 +31,7 @@ THE SOFTWARE.
 #include "mqttsn.h"
 #include "networkif.h"
 #include "config.h"
-#include "Timer.h"
+#include "atimer.h"
 #include"utils.h"
 
 #ifdef ARDUINO
@@ -60,19 +60,6 @@ class MqttsnClient;
 #define CALL_ME(object,ptrToMember) \
     ((object)->*(ptrToMember))
 
-class myFunctor:public myFunctorClass{
-typedef  void (MqttsnClient::*MqttsnClientMemFn)();
-public:
-    myFunctor(MqttsnClient* o, MqttsnClientMemFn  fp):_o(o),_fp(fp){D_PRINTLN("Const");}
-    void  operator() () {
-        CALL_ME(_o,_fp)();
-       D_PRINTLN("Here we go");
-    }
-
-private:
-    MqttsnClient *_o;
-    MqttsnClientMemFn  _fp;
-};
 
 class MqttsnClient {
 public:
@@ -185,9 +172,14 @@ private:
     #define HANDLER_ARRAY_SIZE 16
     msgHdlr _mqttMsgHdler[HANDLER_ARRAY_SIZE];
 
-    void timeCallback(){ D_PRINTLN("Hello Form timer !");}
-    myFunctor _mf;
-    Timer t;
+    enum timers{
+        GTWSEARCH_TIMER,
+        TIMER_ARRAY_SIZE ///<Number of timers, must be last.
+    };
+
+    void handleSearchGTWTimeout();
+    ATimer _timers[TIMER_ARRAY_SIZE];
+
 
 };
 #endif
@@ -211,3 +203,6 @@ private:
 /*0x1B WILLTOPICRESP*/SET_HANDLER( WILLTOPICRESP,&MqttsnClient::willtopicresp_handler),\
 /*0x1D WILLMSGRESP*/  SET_HANDLER( WILLMSGRESP,  &MqttsnClient::willmsgresp_handler)
 
+#define SET_TIMER(handler,isSingleShot){*this,&MqttsnClient::handler,isSingleShot}
+#define CLIENT_TIMERS\
+    SET_TIMER(handleSearchGTWTimeout,false)
