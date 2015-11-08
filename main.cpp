@@ -1,7 +1,6 @@
 #ifndef UNIT_TESTS
 #include "lib/mqttclientdefs.h"
 #include <iostream>
-#include "lib/serialnet.h"
 #include "lib/udpnet.h"
 #include "lib/mqttsnclient.h"
 #include"lib/utils.h"

@@ -5,7 +5,6 @@ CONFIG -= qt
 
 
 SOURCES += main.cpp \
-    lib/serialnet.cpp \
     lib/utils.cpp \
     lib/udpnet.cpp \
     lib/mqttsnclient.cpp \
@@ -18,7 +17,6 @@ HEADERS += \
     lib/mqttsn.h \
     lib/utils.h \
     lib/networkif.h \
-    lib/serialnet.h \
     lib/udpnet.h \
     lib/config.h \
     lib/mqttsnclient.h \
