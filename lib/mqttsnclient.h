@@ -146,8 +146,8 @@ private:
     void handleMsgIn(uint8_t msgLen, message_type msg);
     uint16_t bswap(const uint16_t val);
     void send_message();
-
     void handleSearchGTWTimeout();
+    void handleNetMissingTimeout();
 
     uint16_t _message_id;
     uint8_t topic_count;
@@ -174,6 +174,7 @@ private:
 
     enum timers{
         GTWSEARCH_TIMER,
+        NET_MISSING_TIMER,
         TIMER_ARRAY_SIZE ///<Number of timers, must be last.
     };
 
@@ -183,25 +184,26 @@ private:
 };
 #endif
 
-#define SET_HANDLER(id,handler) {id,handler}
+#define SET_HANDLER(id,handler) {id,&MqttsnClient::handler}
 #define MESSAGE_HANDLER_CALLBACS \
-/*0x00 ADVERTISE*/    SET_HANDLER( ADVERTISE,    &MqttsnClient::advertise_handler),\
-/*0x02 GWINFO*/       SET_HANDLER( GWINFO,       &MqttsnClient::gwinfo_handler),\
-/*0x05 CONNACK*/      SET_HANDLER( CONNACK,      &MqttsnClient::connack_handler),\
-/*0x06 WILLTOPICREQ*/ SET_HANDLER( WILLTOPICREQ, &MqttsnClient::willtopicreq_handler),\
-/*0x08 WILLMSGREQ*/   SET_HANDLER( WILLMSGREQ,   &MqttsnClient::willmsgreq_handler),\
-/*0x0A REGISTER*/     SET_HANDLER( REGISTER,     &MqttsnClient::register_handler),\
-/*0x0B REGACK*/       SET_HANDLER( REGACK ,      &MqttsnClient::regack_handler),\
-/*0x0C PUBLISH*/      SET_HANDLER( PUBLISH,      &MqttsnClient::publish_handler),\
-/*0x0D PUBACK*/       SET_HANDLER( PUBACK ,      &MqttsnClient::puback_handler),\
-/*0x13 SUBACK*/       SET_HANDLER( SUBACK ,      &MqttsnClient::suback_handler),\
-/*0x15 UNSUBACK*/     SET_HANDLER( UNSUBACK,     &MqttsnClient::unsuback_handler),\
-/*0x16 PINGREQ*/      SET_HANDLER( PINGREQ ,     &MqttsnClient::pingreq_handler),\
-/*0x17 PINGRESP*/     SET_HANDLER( PINGRESP ,    &MqttsnClient::pingresp_handler),\
-/*0x18 DISCONNECT*/   SET_HANDLER( DISCONNECT,   &MqttsnClient::disconnect_handler),\
-/*0x1B WILLTOPICRESP*/SET_HANDLER( WILLTOPICRESP,&MqttsnClient::willtopicresp_handler),\
-/*0x1D WILLMSGRESP*/  SET_HANDLER( WILLMSGRESP,  &MqttsnClient::willmsgresp_handler)
+/*0x00 ADVERTISE*/    SET_HANDLER( ADVERTISE,    advertise_handler),\
+/*0x02 GWINFO*/       SET_HANDLER( GWINFO,       gwinfo_handler),\
+/*0x05 CONNACK*/      SET_HANDLER( CONNACK,      connack_handler),\
+/*0x06 WILLTOPICREQ*/ SET_HANDLER( WILLTOPICREQ, willtopicreq_handler),\
+/*0x08 WILLMSGREQ*/   SET_HANDLER( WILLMSGREQ,   willmsgreq_handler),\
+/*0x0A REGISTER*/     SET_HANDLER( REGISTER,     register_handler),\
+/*0x0B REGACK*/       SET_HANDLER( REGACK ,      regack_handler),\
+/*0x0C PUBLISH*/      SET_HANDLER( PUBLISH,      publish_handler),\
+/*0x0D PUBACK*/       SET_HANDLER( PUBACK ,      puback_handler),\
+/*0x13 SUBACK*/       SET_HANDLER( SUBACK ,      suback_handler),\
+/*0x15 UNSUBACK*/     SET_HANDLER( UNSUBACK,     unsuback_handler),\
+/*0x16 PINGREQ*/      SET_HANDLER( PINGREQ ,     pingreq_handler),\
+/*0x17 PINGRESP*/     SET_HANDLER( PINGRESP ,    pingresp_handler),\
+/*0x18 DISCONNECT*/   SET_HANDLER( DISCONNECT,   disconnect_handler),\
+/*0x1B WILLTOPICRESP*/SET_HANDLER( WILLTOPICRESP,willtopicresp_handler),\
+/*0x1D WILLMSGRESP*/  SET_HANDLER( WILLMSGRESP,  willmsgresp_handler)
 
 #define SET_TIMER(handler,isSingleShot){*this,&MqttsnClient::handler,isSingleShot}
 #define CLIENT_TIMERS\
-    SET_TIMER(handleSearchGTWTimeout,false)
+    SET_TIMER(handleSearchGTWTimeout,false),\
+    SET_TIMER(handleNetMissingTimeout,false)

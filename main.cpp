@@ -36,9 +36,7 @@ int main()
 {
     int rc;
     rc = mqttsn.initilize();
-    if(rc){
-       cout << "Init fail rc:"<< rc << endl;
-    }else{
+
        cout << "Runnning.."<< rc << endl;
         while (!kbhit()) {
             rc = mqttsn.run();
@@ -47,8 +45,6 @@ int main()
             }
             usleep(10);
         }
-    }
-    cout << "Hello World!" << endl;
     return rc;
 }
 

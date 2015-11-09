@@ -12,6 +12,12 @@
 #define T_WAIT 360000
 #define T_RETRY 15000
 #define N_RETRY 5000
+
+///Timeout for network failitures.
+/// \todo What is good value for this ?
+///       maybe it should increase like 5 sec 10 20 1 min...
+#define T_NETWORK_FAILED 5000
+
 #define MQTT_DEBUG
 
 #endif // MQTTCLIENTDEFS_H

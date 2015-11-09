@@ -61,6 +61,7 @@ int16_t MqttsnClient::initilize(){
         CHANGESTATE(NOT_CONNECTED);
     }
     else{
+        _timers[NET_MISSING_TIMER].start(T_NETWORK_FAILED);
         CHANGESTATE(NETWORK_MISSING);
     }
 
@@ -153,8 +154,9 @@ void MqttsnClient::send_message() {
 //        delay(10);
 //    }
 }
-
-
+///////////////////////////////////////////////////////////////////////////////////
+////////////////////////////INCOMMING MESSAGE HANDELERS////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
 void MqttsnClient::advertise_handler(const uint8_t *msg, uint8_t msgLen) {
     //_gateway_id = msg->gw_id;
     if(_fsmState == NOT_CONNECTED){
@@ -273,7 +275,9 @@ void MqttsnClient::willtopicresp_handler(const uint8_t *msg, uint8_t msgLen) {
 
 void MqttsnClient::willmsgresp_handler(const uint8_t *msg, uint8_t msgLen) {
 }
-
+///////////////////////////////////////////////////////////////////////////////////
+////////////////////////////OUTGOING MQTT MESSAGES/////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
 void MqttsnClient::searchgw(const uint8_t radius) {
     msg_searchgw* msg = reinterpret_cast<msg_searchgw*>(_message_buffer);
 
@@ -539,7 +543,14 @@ void MqttsnClient::pingresp() {
 
     send_message();
 }
-
+//////////////////////////////////////////////////////////////////////////////
+/////////////////////////////Timeout Handlers/////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 void MqttsnClient::handleSearchGTWTimeout(){
     searchgw(1);
+}
+void MqttsnClient::handleNetMissingTimeout(){
+    int16_t rc = initilize();
+    if(!rc)
+        _timers[NET_MISSING_TIMER].stop();
 }
