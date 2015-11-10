@@ -55,7 +55,7 @@ MqttsnClient::~MqttsnClient() {
 int16_t MqttsnClient::initilize(){
     int16_t rc = _networkIf.initilize();
 
-    if( !rc ){
+    if(!rc){
         searchgw(1);
         _timers[GTWSEARCH_TIMER].start(T_SEARCH_GW);
         CHANGESTATE(NOT_CONNECTED);
@@ -132,27 +132,24 @@ uint16_t MqttsnClient::find_topic_id(const char* name, uint8_t& index) {
 
 void MqttsnClient::send_message() {
     message_header* hdr = reinterpret_cast<message_header*>(_message_buffer);
+    int16_t rc;
+    D_PRINT("Send ");
+    D_PRINT(message_names[hdr->type]);
+    D_PRINT(" Len: ");
+    D_PRINT((int)hdr->length);
+    D_PRINT(" Data");
+    for(int i=0 ;i < hdr->length;i++ )
+        D_PRINT_HEX((int)_message_buffer[i]);
+    D_PRINTLN("");
 
-   D_PRINT("Send ");
-   D_PRINT(message_names[hdr->type]);
-   D_PRINT(" Len: ");
-   D_PRINT((int)hdr->length);
-   D_PRINT(" Data");
-   for(int i=0 ;i < hdr->length;i++ )
-       D_PRINT_HEX((int)_message_buffer[i]);
-   D_PRINTLN("");
+    rc = _networkIf.send(_message_buffer, hdr->length);
+    if(rc){
+        // At this point lets start from begin, maybe in future
+        //More desent way to recovery.
+        _timers[NET_MISSING_TIMER].start(T_NETWORK_FAILED);
+        CHANGESTATE(NETWORK_MISSING);
+    }
 
-   _networkIf.send(_message_buffer, hdr->length);
-
-
-//    if (!waiting_for_response) {
-//        _response_timer = millis();
-
-//        _response_retries = N_RETRY;
-
-        // Cheesy hack to ensure two messages don't run-on into one send.
-//        delay(10);
-//    }
 }
 ///////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////INCOMMING MESSAGE HANDELERS////////////////////////////
