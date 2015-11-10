@@ -51,6 +51,7 @@ public:
     int recv(uint8_t * buffer,uint16_t buffSize);
     int16_t initilize();
 
+private:
     bool open( );
     int unicast(const uint8_t* buf, uint32_t length, uint32_t ipaddress, uint16_t port  );
     int multicast( const uint8_t* buf, uint32_t length );
@@ -58,8 +59,6 @@ public:
     int recv(uint8_t* buf, uint16_t len, int flags);
     bool checkRecvBuf();
     bool isUnicast();
-
-private:
     void close();
     int recvfrom ( uint8_t* buf, uint16_t len, int flags, uint32_t* ipaddress, uint16_t* port );
 
