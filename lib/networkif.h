@@ -14,6 +14,12 @@
     #endif
 #endif
 
+class NetworkAddr{
+    public:
+    NetworkAddr(){;}
+    virtual ~NetworkAddr(){;}
+};
+
 ///Public interface to network device.
 ///Very simple interface to the underlying network.
 ///Goal is that it changing network implementation.
@@ -25,8 +31,19 @@
 class NetworkIf{
 public:
     NetworkIf(){;}
-    virtual int send(const uint8_t * buffer,uint16_t buffSize)=0;
-    virtual int recv(uint8_t * buffer,uint16_t buffSize)=0;
+
+    ///Send message to network.
+    /// \return Number of bytes sent out.
+    ///         In case of error negative number
+    ///
+    virtual int send(const uint8_t * buffer,
+                     uint16_t buffSize,
+                     NetworkAddr *addr=NULL
+                     )=0;
+
+    virtual int recv(uint8_t * buffer,
+                     uint16_t buffSize
+                     )=0;
     ///Initilizing network connection.
     ///After initilizing it's possible to sen messages to the network
     /// What ever it means e.g opening serialport, create and open socket etc.
@@ -36,6 +53,12 @@ public:
     ///          \retval !0 in case error, error codes specified by class that implements interface.
     ///
     virtual int16_t initilize()=0;
+
+    /// Pointer to struct holds address of last received message sender.
+    /// Caller must delete when ever do not need it anymore.
+    ///
+    virtual NetworkAddr * getLastRecvAddr()=0;
 };
+
 
 #endif // NETWORKIF_H

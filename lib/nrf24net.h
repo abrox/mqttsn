@@ -16,7 +16,7 @@ class Nrf24Net : public NetworkIf
 {
 public:
     Nrf24Net();
-    int send(const uint8_t * buffer,uint16_t buffSize){return 1;}
+    int send(const uint8_t * buffer,uint16_t buffSize,NetworkAddr *addr=NULL){return 1;}
     int recv(uint8_t * buffer,uint16_t buffSize){return 0;}
     int16_t initilize();
 };

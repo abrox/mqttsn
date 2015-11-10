@@ -35,6 +35,13 @@ typedef struct {
 
 #define PACKET_TIMEOUT_CHECK   200  // msec
 
+class IpAddr:public NetworkAddr{
+public:
+    uint32_t _addr;
+    uint16_t _port;
+    IpAddr(uint32_t a=0,uint16_t p=0):_addr(a),_port(p){;}
+};
+
 class UdpNet : public NetworkIf
 {
 public:
@@ -47,9 +54,10 @@ public:
 
     UdpNet(const UdpConfig &config);
     virtual ~UdpNet();
-    int send(const uint8_t * buffer,uint16_t buffSize);
+    int send(const uint8_t * buffer,uint16_t buffSize,NetworkAddr *addr=NULL);
     int recv(uint8_t * buffer,uint16_t buffSize);
     int16_t initilize();
+    NetworkAddr * getLastRecvAddr();
 
 private:
     bool open( );
@@ -58,7 +66,6 @@ private:
     int recv(uint8_t* buf, uint16_t len, bool nonblock, uint32_t* ipaddress, uint16_t* port );
     int recv(uint8_t* buf, uint16_t len, int flags);
     bool checkRecvBuf();
-    bool isUnicast();
     void close();
     int recvfrom ( uint8_t* buf, uint16_t len, int flags, uint32_t* ipaddress, uint16_t* port );
 
@@ -70,6 +77,7 @@ private:
     uint16_t _gPortNo;
     uint16_t _uPortNo;
     uint32_t _gIpAddr;
+    IpAddr   _lastRecv;
 
 
 };

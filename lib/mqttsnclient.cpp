@@ -37,6 +37,7 @@ _message_id(0),
 topic_count(0),
 _gateway_id(0),
 _networkIf(networkIf),
+_gtwInfo{0xff,NULL},
 _mqttConfig(mqttConfig),
 _fsmState(INIT),
 _fsmStateName(NULL),
@@ -142,8 +143,8 @@ void MqttsnClient::send_message() {
         D_PRINT_HEX((int)_message_buffer[i]);
     D_PRINTLN("");
 
-    rc = _networkIf.send(_message_buffer, hdr->length);
-    if(rc){
+    rc = _networkIf.send(_message_buffer, hdr->length,_gtwInfo._gtwAddr);
+    if(rc < 0){
         // At this point lets start from begin, maybe in future
         //More desent way to recovery.
         _timers[NET_MISSING_TIMER].start(T_NETWORK_FAILED);
@@ -154,21 +155,28 @@ void MqttsnClient::send_message() {
 ///////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////INCOMMING MESSAGE HANDELERS////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
-void MqttsnClient::advertise_handler(const uint8_t *msg, uint8_t msgLen) {
-    //_gateway_id = msg->gw_id;
+void MqttsnClient::handleGtwFound(uint8_t id)
+{
+    _gtwInfo._id = id;
+    _gtwInfo._gtwAddr = _networkIf.getLastRecvAddr();
+    _timers[GTWSEARCH_TIMER].stop();
+    connect();
+    CHANGESTATE(CONNECTING);
+}
+
+void MqttsnClient::advertise_handler(const uint8_t *m, uint8_t msgLen) {
+    const msg_advertise *msg = reinterpret_cast<msg_advertise const *>(m);
+
     if(_fsmState == NOT_CONNECTED){
-        _timers[GTWSEARCH_TIMER].stop();
-        connect();
-        CHANGESTATE(CONNECTING);
+        handleGtwFound(msg->gw_id);
     }
 }
 
-void MqttsnClient::gwinfo_handler(const uint8_t *msg, uint8_t msgLen) {
+void MqttsnClient::gwinfo_handler(const uint8_t *m, uint8_t msgLen) {
+   const msg_gwinfo *msg= reinterpret_cast<msg_gwinfo const *>(m);
 
     if(_fsmState == NOT_CONNECTED){
-        _timers[GTWSEARCH_TIMER].stop();
-        connect();
-        CHANGESTATE(CONNECTING);
+        handleGtwFound(msg->gw_id);
     }
 }
 
@@ -547,6 +555,12 @@ void MqttsnClient::handleSearchGTWTimeout(){
     searchgw(1);
 }
 void MqttsnClient::handleNetMissingTimeout(){
+
+    if( _gtwInfo._gtwAddr ){
+        delete  _gtwInfo._gtwAddr;
+         _gtwInfo._gtwAddr= NULL;
+    }
+
     int16_t rc = initilize();
     if(!rc)
         _timers[NET_MISSING_TIMER].stop();

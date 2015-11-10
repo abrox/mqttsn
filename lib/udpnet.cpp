@@ -42,6 +42,9 @@ int16_t UdpNet::initilize(){
     _gIpAddr = address.s_addr;
     _uPortNo = htons(_config.uPortNo);
 
+    _lastRecv._addr=0;
+    _lastRecv._port=0;
+
     if( _gPortNo == 0 || _gIpAddr == 0 || _uPortNo == 0)
         return INVALID_CONF;
     else if (!open())
@@ -49,6 +52,11 @@ int16_t UdpNet::initilize(){
 
     return OK;
 }
+ NetworkAddr * UdpNet::getLastRecvAddr(){
+      NetworkAddr *a= new  NetworkAddr;
+      *a=_lastRecv;
+     return a;
+ }
 
 void UdpNet::close(){
     if(_sockfdMcast > 0){
@@ -60,17 +68,21 @@ void UdpNet::close(){
         }
     }
 }
-int UdpNet::send(const uint8_t * buffer,uint16_t buffSize){
-    return multicast(buffer,buffSize);
+int UdpNet::send(const uint8_t * buffer,uint16_t buffSize, NetworkAddr *addr){
+    int rc;
+
+    if(addr)
+        rc = unicast(buffer,buffSize,_lastRecv._addr,_gPortNo);
+    else
+        rc = multicast(buffer,buffSize);
+    return rc;
 }
 int UdpNet::recv(uint8_t * buffer,uint16_t buffSize){
     int stat=0;
-    uint32_t ip;
-    uint16_t port;
 
     if(checkRecvBuf()){
-        stat=recv(buffer,buffSize,true,&ip,&port);
-        //D_PRINTF("From ")
+        stat=recv(buffer,buffSize,true,&_lastRecv._addr,&_lastRecv._port);
+
     }
     return stat;
 }
@@ -142,11 +154,6 @@ bool UdpNet::open(){
 */
     return true;
 }
-
-bool UdpNet::isUnicast(){
-    return ( _castStat == STAT_UNICAST);
-}
-
 
 int UdpNet::unicast(const uint8_t* buf, uint32_t length, uint32_t ipAddress, uint16_t port  ){
     struct sockaddr_in dest;

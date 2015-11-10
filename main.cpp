@@ -37,7 +37,6 @@ int main()
     int rc;
     rc = mqttsn.initilize();
 
-       cout << "Runnning.."<< rc << endl;
         while (!kbhit()) {
             rc = mqttsn.run();
             if(rc){

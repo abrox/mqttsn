@@ -146,6 +146,8 @@ private:
     void handleMsgIn(uint8_t msgLen, message_type msg);
     uint16_t bswap(const uint16_t val);
     void send_message();
+
+    void handleGtwFound(uint8_t id);
     void handleSearchGTWTimeout();
     void handleNetMissingTimeout();
 
@@ -154,7 +156,13 @@ private:
     uint8_t _gateway_id;
 
     NetworkIf &_networkIf;
+    struct GtwInfo{
+           uint8_t _id;
+           NetworkAddr *_gtwAddr;
+    };
+    GtwInfo _gtwInfo;
     MqttConfig _mqttConfig;
+
     FSMState _fsmState;
     const char* _fsmStateName;
     uint8_t _message_buffer[MAX_BUFFER_SIZE];

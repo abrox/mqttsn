@@ -11,7 +11,8 @@ SOURCES += main.cpp \
     lib/tests/test-mqttclient.cpp \
     lib/nrf24net.cpp \
     lib/tests/test-msgreceive.cpp \
-    ../atimer/atimer.cpp
+    ../atimer/atimer.cpp \
+    lib/tests/test-initilize.cpp
 
 HEADERS += \
     lib/mqttsn.h \
