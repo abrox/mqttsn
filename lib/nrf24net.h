@@ -19,6 +19,7 @@ public:
     int send(const uint8_t * buffer,uint16_t buffSize,NetworkAddr *addr=NULL){return 1;}
     int recv(uint8_t * buffer,uint16_t buffSize){return 0;}
     int16_t initilize();
+    NetworkAddr * getLastRecvAddr(){return NULL;}
 };
 
 #endif // NRF24NET_H

@@ -91,11 +91,16 @@ int16_t MqttsnClient::receiveMsg(uint8_t * buffer, const uint16_t buffSize, uint
 
     return rc2;
 }
+#define CALL_ME(object,ptrToMember) \
+    ((object)->*(ptrToMember))
+
 void MqttsnClient::handleMsgIn(uint8_t msgLen, message_type msg)
 {
     for (uint8_t i=0;i<HANDLER_ARRAY_SIZE;i++) {
         if(_mqttMsgHdler[i]._id == msg){
             CALL_ME(this,_mqttMsgHdler[i]._hdlr) (_response_buffer,msgLen);
+            if(_mqttMsgHdler[i]._ucbhlr)
+                _mqttMsgHdler[i]._ucbhlr(this,_response_buffer,msgLen);
             break;
         }
     }
@@ -129,6 +134,16 @@ uint16_t MqttsnClient::find_topic_id(const char* name, uint8_t& index) {
     }
 
     return 0xffff;
+}
+bool MqttsnClient::registerUserMsgCallBack(message_type type, UserCBHdler cbFunct){
+
+    for (uint8_t i=0;i<HANDLER_ARRAY_SIZE;i++) {
+        if(_mqttMsgHdler[i]._id == type){
+           _mqttMsgHdler[i]._ucbhlr = cbFunct;
+            return true;
+        }
+    }
+  return false;
 }
 
 void MqttsnClient::send_message() {
@@ -403,7 +418,7 @@ void MqttsnClient::publish(const uint8_t flags, const uint16_t topic_id, const v
     msg->type = PUBLISH;
     msg->flags = flags;
     msg->topic_id = bswap(topic_id);
-    msg->message_id = bswap(_message_id);
+    msg->message_id = (flags & QOS_MASK == FLAG_QOS_0)?0:bswap(_message_id);
     memcpy(msg->data, data, data_len);
 
     send_message();

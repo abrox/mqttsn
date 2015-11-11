@@ -56,37 +56,53 @@ THE SOFTWARE.
 
 class MqttsnClient;
 
-
-#define CALL_ME(object,ptrToMember) \
-    ((object)->*(ptrToMember))
-
+typedef  void (*UserCBHdler)(MqttsnClient *client,const uint8_t *msg, uint8_t msgLen);
 
 class MqttsnClient {
 public:
-    MqttsnClient(NetworkIf &networkIf,const MqttConfig &mqttConfig);
+    ///Construct MqqtClient
+    ///
+    MqttsnClient(NetworkIf &networkIf,///<NetIf. \note Thus it's reference Networkinterface can't be dekleted before this object !
+                 const MqttConfig &mqttConfig
+                 );
     virtual ~MqttsnClient();
 
+    ///Initialize Client and network.
+    /// In case network initilizing fails active timer and
+    /// Retry after T_NETWORK_FAILED timeout.
+    /// \return 0 in case success.
+    ///
     int16_t initilize();
+
+    ///Run Client.
+    /// User must call this perioditically on loop.
+    /// Handels message receiving & timeouts.
+    ///
     int16_t run();
 
-
-    int16_t receiveMsg(uint8_t * buffer, const uint16_t buffSize, uint8_t &msgLen, message_type &msg);
+    bool register_topic(const char* name);
+    bool registerUserMsgCallBack(message_type type, UserCBHdler cbFunct);
 
     uint16_t find_topic_id(const char* name, uint8_t& index);
+    void publish(const uint8_t flags, const uint16_t topic_id, const void* data, const uint8_t data_len);
+    void subscribe_by_name(const uint8_t flags, const char* topic_name);
+
+#ifndef UNIT_TESTS
+protected:
+#endif
+    int16_t receiveMsg(uint8_t * buffer, const uint16_t buffSize, uint8_t &msgLen, message_type &msg);
+
 
 
     void searchgw(const uint8_t radius);
     void connect();
     void willtopic(const uint8_t flags, const char* will_topic, const bool update = false);
     void willmsg(const void* will_msg, const uint8_t will_msg_len, const bool update = false);
-    bool register_topic(const char* name);
-    void publish(const uint8_t flags, const uint16_t topic_id, const void* data, const uint8_t data_len);
 #ifdef USE_QOS2
     void pubrec();
     void pubrel();
     void pubcomp();
 #endif
-    void subscribe_by_name(const uint8_t flags, const char* topic_name);
     void subscribe_by_id(const uint8_t flags, const uint16_t topic_id);
     void unsubscribe_by_name(const uint8_t flags, const char* topic_name);
     void unsubscribe_by_id(const uint8_t flags, const uint16_t topic_id);
@@ -95,9 +111,7 @@ public:
     void disconnect(const uint16_t duration);
 
 
-#ifndef UNIT_TESTS
-protected:
-#endif
+
     virtual void advertise_handler(const uint8_t *msg, uint8_t msgLen);
     virtual void gwinfo_handler(const uint8_t *msg, uint8_t msgLen);
     virtual void connack_handler(const uint8_t *msg, uint8_t msgLen);
@@ -173,9 +187,10 @@ private:
     struct msgHdlr{
         const uint8_t _id;
         MqttMsgHdler _hdlr;
+        UserCBHdler  _ucbhlr;
         //By introduse explisit constructor, without defaults,
         //it's inpossible to introduse handler array thats not initilized or is wrong size :-)
-        msgHdlr(const uint8_t id,MqttMsgHdler hdlr):_id(id),_hdlr(hdlr){;}
+        msgHdlr(const uint8_t id,MqttMsgHdler hdlr):_id(id),_hdlr(hdlr),_ucbhlr(NULL){;}
     };
     #define HANDLER_ARRAY_SIZE 16
     msgHdlr _mqttMsgHdler[HANDLER_ARRAY_SIZE];
