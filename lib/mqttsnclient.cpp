@@ -34,7 +34,6 @@ THE SOFTWARE.
 
 MqttsnClient::MqttsnClient(NetworkIf &networkIf, const MqttConfig &mqttConfig) :
 _message_id(0),
-topic_count(0),
 _gateway_id(0),
 _networkIf(networkIf),
 _gtwInfo{0xff,NULL},
@@ -46,7 +45,6 @@ _response_buffer{0},
 _mqttMsgHdler{MESSAGE_HANDLER_CALLBACS},
 _timers{CLIENT_TIMERS}
 {
-    memset(topic_table, 0, sizeof(topic) * MAX_TOPICS);
 
 }
 
@@ -115,6 +113,8 @@ int16_t MqttsnClient::run(){
 
     if(rc==OK) handleMsgIn(msgLen, msg);
 
+    handlePendingRegistrations();
+
     for(uint8_t i=0;i< TIMER_ARRAY_SIZE;i++) _timers[i].run();
 
     return 0;
@@ -126,7 +126,7 @@ uint16_t MqttsnClient::bswap(const uint16_t val) {
 }
 
 uint16_t MqttsnClient::find_topic_id(const char* name, uint8_t& index) {
-    for (uint8_t i = 0; i < topic_count; ++i) {
+    for (uint8_t i = 0; i < MAX_TOPICS; ++i) {
         if (strcmp(topic_table[i].name, name) == 0) {
             index = i;
             return topic_table[i].id;
@@ -207,26 +207,38 @@ void MqttsnClient::willmsgreq_handler(const uint8_t *msg, uint8_t msgLen) {
     willmsg(_mqttConfig.willMsg,strlen(_mqttConfig.willMsg));
 }
 
+
+
 void MqttsnClient::regack_handler(const uint8_t *m, uint8_t msgLen) {
-
     const msg_regack *msg=reinterpret_cast<const msg_regack*>(m);
-    if (msg->return_code == 0 && topic_count < MAX_TOPICS && bswap(msg->message_id) == _message_id) {
-        const uint16_t topic_id = bswap(msg->topic_id);
+    //Only one should pending so this must find it
+    topic*       t = getTopicByState(WAIT_REG);
+    uint16_t msgId = bswap(msg->message_id);
+    uint16_t    id = bswap(msg->topic_id);
 
-        bool found_topic = false;
-
-        for (uint8_t i = 0; i < topic_count; ++i) {
-            if (topic_table[i].id == topic_id) {
-                found_topic = true;
-                break;
-            }
-        }
-
-        if (!found_topic) {
-            topic_table[topic_count].id = topic_id;
-            ++topic_count;
-        }
+    if(t->id != msgId){
+        //Bad things has happened what to do ?
+        //todo handle somehow
+        return;
     }
+
+    t->id = id;
+
+    switch(msg->return_code){
+       case ACCEPTED:
+        t->state = REGISTERED;
+        break;
+    case REJECTED_CONGESTION:
+        //If the return code was “rejected: congestion”, the client should wait for a time T W AIT before restarting the registration procedure
+        break;
+    default:
+
+        break;
+
+    }
+
+    if(t->hdlr)
+        t->hdlr(this,id,REGACK,reinterpret_cast<const uint8_t*>(t->name),strlen(t->name),msg->return_code);
 }
 
 void MqttsnClient::puback_handler(const uint8_t *msg, uint8_t msgLen) {
@@ -265,7 +277,7 @@ void MqttsnClient::publish_handler(const uint8_t *m, uint8_t msgLen) {
         return_code_t ret = REJECTED_INVALID_TOPIC_ID;
         const uint16_t topic_id = bswap(msg->topic_id);
 
-        for (uint8_t i = 0; i < topic_count; ++i) {
+        for (uint8_t i = 0; i < MAX_TOPICS; ++i) {
             if (topic_table[i].id == topic_id) {
                 ret = ACCEPTED;
                 break;
@@ -276,6 +288,11 @@ void MqttsnClient::publish_handler(const uint8_t *m, uint8_t msgLen) {
     }
 }
 
+//A GW sends a REGISTER message to a client if it wants to inform that client about the topic name and the
+//assigned topic id that it will use later on when sending PUBLISH messages of the corresponding topic name.
+//This happens for example when the client re-connects without having set the “CleanSession” flag or the client has
+//subscribed to topic names that contain wildcard characters such as # or +.
+///\todo WIldcard handling missing.
 void MqttsnClient::register_handler(const uint8_t *m, uint8_t msgLen) {
     const msg_register *msg=reinterpret_cast<const msg_register *>(m);
     return_code_t ret = REJECTED_INVALID_TOPIC_ID;
@@ -371,30 +388,53 @@ void MqttsnClient::disconnect(const uint16_t duration) {
     send_message();
 }
 
-bool MqttsnClient::register_topic(const char* name) {
-    //Todo handle pending response
-    if (topic_count < (MAX_TOPICS - 1)) {
+void MqttsnClient::handlePendingRegistrations(){
+    msg_register* msg = reinterpret_cast<msg_register*>(_message_buffer);
+
+    topic * t;
+
+    //Only one of the topics can wait registration at time
+    if(getTopicByState(WAIT_REG))
+        return;
+
+    t=getTopicByState(WAIT_SEND);
+    if(t){
         ++_message_id;
-
-        // Fill in the next table entry, but we only increment the counter to
-        // the next topic when we get a REGACK from the broker. So don't issue
-        // another REGISTER until we have resolved this one.
-        topic_table[topic_count].name = name;
-        topic_table[topic_count].id = 0;
-
-        msg_register* msg = reinterpret_cast<msg_register*>(_message_buffer);
-
-        msg->length = sizeof(msg_register) + strlen(name);
+        msg->length = sizeof(msg_register) + strlen(t->name);
         msg->type = REGISTER;
         msg->topic_id = 0;
         msg->message_id = bswap(_message_id);
-        strcpy(msg->topic_name, name);
+        strcpy(msg->topic_name, t->name);
 
-        send_message();
-        return true;
+       t->id =_message_id;//Just to find this referense to this.
+       t->state = WAIT_REG;
+
+       send_message();
     }
+}
 
-    return false;
+MqttsnClient::topic *MqttsnClient::getTopicByState(RegState s)
+{
+    for(uint8_t i=0; i < MAX_TOPICS;i++)
+        if(topic_table[i].state == s)
+            return &topic_table[i];
+
+    return NULL;
+}
+
+bool MqttsnClient::register_topic(const char* name,TopicHdlr topicHdlr) {
+
+    topic * t=getTopicByState(FREE);
+
+    if(!t)
+        return false;
+
+    t->name  = name;
+    t->id    = 0;
+    t->hdlr  = topicHdlr;
+    t->state = WAIT_SEND;
+
+    return true;
 }
 
 void MqttsnClient::regack(const uint16_t topic_id, const uint16_t message_id, const return_code_t return_code) {
@@ -409,8 +449,10 @@ void MqttsnClient::regack(const uint16_t topic_id, const uint16_t message_id, co
     send_message();
 }
 
-void MqttsnClient::publish(const uint8_t flags, const uint16_t topic_id, const void* data, const uint8_t data_len) {
-    ++_message_id;
+bool MqttsnClient::publish(const uint8_t flags, const uint16_t topic_id, const void* data, const uint8_t data_len) {
+
+    if( data_len > (MAX_BUFFER_SIZE - sizeof(msg_publish)) || (!data && data_len>0))
+        return false;
 
     msg_publish* msg = reinterpret_cast<msg_publish*>(_message_buffer);
 
@@ -418,7 +460,7 @@ void MqttsnClient::publish(const uint8_t flags, const uint16_t topic_id, const v
     msg->type = PUBLISH;
     msg->flags = flags;
     msg->topic_id = bswap(topic_id);
-    msg->message_id = (flags & QOS_MASK == FLAG_QOS_0)?0:bswap(_message_id);
+    msg->message_id = (flags & QOS_MASK == FLAG_QOS_0)?0:bswap(++_message_id);
     memcpy(msg->data, data, data_len);
 
     send_message();
@@ -426,6 +468,7 @@ void MqttsnClient::publish(const uint8_t flags, const uint16_t topic_id, const v
     if ((flags & QOS_MASK) == FLAG_QOS_1 || (flags & QOS_MASK) == FLAG_QOS_2) {
         ;//todo handle waiting response !
     }
+    return true;
 }
 
 #ifdef USE_QOS2
@@ -469,7 +512,10 @@ void MqttsnClient::puback(const uint16_t topic_id, const uint16_t message_id, co
     send_message();
 }
 
-void MqttsnClient::subscribe_by_name(const uint8_t flags, const char* topic_name) {
+bool MqttsnClient::subscribe_by_name(const uint8_t flags, const char* topic_name) {
+    if( !topic_name || strlen(topic_name) > MAX_BUFFER_SIZE - sizeof(msg_subscribe))
+        return false;
+
     ++_message_id;
 
     msg_subscribe* msg = reinterpret_cast<msg_subscribe*>(_message_buffer);
@@ -487,6 +533,8 @@ void MqttsnClient::subscribe_by_name(const uint8_t flags, const char* topic_name
     if ((flags & QOS_MASK) == FLAG_QOS_1 || (flags & QOS_MASK) == FLAG_QOS_2) {
         ;//todo handle pending response
     }
+
+    return true;
 }
 
 void MqttsnClient::subscribe_by_id(const uint8_t flags, const uint16_t topic_id) {

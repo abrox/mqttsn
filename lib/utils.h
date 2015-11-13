@@ -51,6 +51,8 @@ int kbhit(void);
     #else
         #define D_PRINT(...)
         #define D_PRINTLN(...)
+        #define D_PRINTF(...)
+        #define D_PRINT_HEX(...)
     #endif
 #endif
 

@@ -58,6 +58,14 @@ class MqttsnClient;
 
 typedef  void (*UserCBHdler)(MqttsnClient *client,const uint8_t *msg, uint8_t msgLen);
 
+typedef  void (*TopicHdlr)(MqttsnClient *client,
+                           const uint16_t &topicId,
+                           const message_type &mqttMsg,
+                           const uint8_t *msg,
+                           uint8_t msgLen,
+                           const uint16_t &rCode);
+
+
 class MqttsnClient {
 public:
     ///Construct MqqtClient
@@ -80,12 +88,12 @@ public:
     ///
     int16_t run();
 
-    bool register_topic(const char* name);
+    bool register_topic(const char* name,TopicHdlr topicHdlr=NULL);
     bool registerUserMsgCallBack(message_type type, UserCBHdler cbFunct);
 
     uint16_t find_topic_id(const char* name, uint8_t& index);
-    void publish(const uint8_t flags, const uint16_t topic_id, const void* data, const uint8_t data_len);
-    void subscribe_by_name(const uint8_t flags, const char* topic_name);
+    bool publish(const uint8_t flags, const uint16_t topic_id, const void* data, const uint8_t data_len);
+    bool subscribe_by_name(const uint8_t flags, const char* topic_name);
 
 #ifndef UNIT_TESTS
 protected:
@@ -140,10 +148,22 @@ protected:
 #ifndef UNIT_TESTS
 private:
 #endif
+    enum RegState{
+        FREE,
+        WAIT_SEND,
+        WAIT_REG,
+        REGISTERED
+    };
+
     struct topic {
         const char* name;
         uint16_t id;
+        TopicHdlr hdlr;
+        RegState  state;
+        //Init corret values
+        topic():name(NULL),id(0),hdlr(NULL),state(FREE){;}
     };
+
     enum FSMState{
         INIT,
         NOT_CONNECTED,
@@ -160,13 +180,14 @@ private:
     void handleMsgIn(uint8_t msgLen, message_type msg);
     uint16_t bswap(const uint16_t val);
     void send_message();
-
+    topic* getTopicByState(RegState s);
     void handleGtwFound(uint8_t id);
+    void handlePendingRegistrations();
     void handleSearchGTWTimeout();
     void handleNetMissingTimeout();
 
     uint16_t _message_id;
-    uint8_t topic_count;
+
     uint8_t _gateway_id;
 
     NetworkIf &_networkIf;
