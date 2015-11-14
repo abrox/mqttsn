@@ -43,6 +43,12 @@ const char* message_names[] = {
     "WILLMSGUPD",
     "WILLMSGRESP"
 };
+const char* RcodeNames[]= {
+    "ACCEPTED",
+    "REJECTED_CONGESTION",
+    "REJECTED_INVALID_TOPIC_ID",
+    "REJECTED_NOT_SUPPORTED"
+    };
 void printOutMqttMsg(const uint8_t * msg, uint8_t len,bool in ){
     message_header const* hdr = reinterpret_cast<message_header const *>(msg);
     if( in )
@@ -88,10 +94,82 @@ void printOutMqttMsg(const uint8_t * msg, uint8_t len,bool in ){
         printf("\n");
     }
         break;
+    case CONNACK:
+    {
+        msg_connack const *m = reinterpret_cast< msg_connack const*>(msg);
+        printf("rCode: %s(%d)\n",RcodeNames[bswap(m->return_code)%RCODE_MAX],bswap(m->return_code));
+    }
+        break;
+    case WILLTOPIC:
+    {
+        msg_willtopic const *m = reinterpret_cast< msg_willtopic const*>(msg);
+        printf("flags: %02x topic: ",m->flags);
+        for(int i=0 ;i < (hdr->length-sizeof(msg_willtopic));i++ )
+            printf("%c",m->will_topic[i]);
+        printf("\n");
+    }
+        break;
+    case WILLMSG:
+    {
+        msg_willmsg const *m = reinterpret_cast< msg_willmsg const*>(msg);
+        printf("Will:");
+        for(int i=0 ;i < (hdr->length-sizeof(msg_willmsg));i++ )
+            printf("%c",m->willmsg[i]);
+        printf("\n");
+    }
+        break;
+    case REGISTER:
+    {
+        msg_register const *m = reinterpret_cast< msg_register const*>(msg);
+        printf("topicId:%d messageID%d: ",bswap(m->topic_id),bswap(m->message_id));
+        for(int i=0 ;i < (hdr->length-sizeof(msg_register));i++ )
+            printf("%c",m->topic_name[i]);
+        printf("\n");
+    }
+        break;
+    case REGACK:
+    case PUBACK://same data than regack
+    {
+        msg_regack const *m = reinterpret_cast< msg_regack const*>(msg);
+        printf("topicId: %d messageID: %d rCode: %s(%d)\n",bswap(m->topic_id),
+                                                           bswap(m->message_id),
+                                                           RcodeNames[m->return_code%RCODE_MAX],
+                                                           m->return_code);
+    }
+        break;
+    case PUBLISH:
+    {
+        msg_publish const *m = reinterpret_cast< msg_publish const*>(msg);
+        printf("flags: %02x topicId: %d messageID: %d",m->flags, bswap(m->topic_id),bswap(m->message_id));
+        for(int i=0 ;i < (hdr->length-sizeof(msg_publish));i++ )
+                  printf("%02x",m->data[i]);
+        printf("\n");
+    }
+        break;
+    case SUBSCRIBE:
+    {
+        msg_subscribe const *m = reinterpret_cast< msg_subscribe const*>(msg);
+        printf("flags: %02x messageID: %d topic:",m->flags, bswap(m->message_id));
+        for(int i=sizeof(msg_subscribe)-2 ;i < hdr->length;i++ )
+                  printf("%c",msg[i]);
+        printf("\n");
+    }
+        break;
+    case SUBACK:
+    {
+        msg_suback const *m = reinterpret_cast< msg_suback const*>(msg);
+        printf("flags:%02x topicId: %d messageID: %d rCode: %s(%d)\n",m->flags,
+                                                        bswap(m->topic_id),
+                                                        bswap(m->message_id),
+                                                        RcodeNames[m->return_code%RCODE_MAX],
+                                                        m->return_code);
+    }
+        break;
+
     case PINGREQ:
     {
         msg_pingreq const *m = reinterpret_cast< msg_pingreq const*>(msg);
-        printf("Client:");
+        printf("\tClient:");
         for(int i=0 ;i < (hdr->length-sizeof(msg_pingreq));i++ )
             printf("%c",m->client_id[i]);
         printf("\n");

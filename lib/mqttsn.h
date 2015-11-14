@@ -59,7 +59,8 @@ enum return_code_t {
     ACCEPTED,
     REJECTED_CONGESTION,
     REJECTED_INVALID_TOPIC_ID,
-    REJECTED_NOT_SUPPORTED
+    REJECTED_NOT_SUPPORTED,
+    RCODE_MAX = REJECTED_NOT_SUPPORTED
 };
 
 enum __attribute__ ((__packed__)) message_type {

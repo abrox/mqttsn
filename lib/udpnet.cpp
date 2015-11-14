@@ -1,8 +1,18 @@
+
+#ifdef NET_DEBUG
+    #define MQTT_DEBUG
+#else
+    #undef MQTT_DEBUG
+#endif
+
 #include "mqttclientdefs.h"
 #include "udpnet.h"
+
 #include "utils.h"
 
 #ifdef LINUX
+
+
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -15,6 +25,9 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <termios.h>
+
+
+
 
 UdpNet::UdpNet(const UdpConfig &config):
     _config(config),
