@@ -78,6 +78,7 @@ int16_t MqttsnClient::receiveMsg(uint8_t * buffer, const uint16_t buffSize, uint
         msgLen = rc;
         msg=static_cast<message_type>(buffer[1]);
         rc2=OK;
+        printOutMqttMsg(buffer,msgLen,true);
     }
     else
     if ( rc == 0 ){
@@ -120,11 +121,6 @@ int16_t MqttsnClient::run(){
     return 0;
 }
 
-
-uint16_t MqttsnClient::bswap(const uint16_t val) {
-    return (val << 8) | (val >> 8);
-}
-
 uint16_t MqttsnClient::find_topic_id(const char* name, uint8_t& index) {
     for (uint8_t i = 0; i < MAX_TOPICS; ++i) {
         if (strcmp(topic_table[i].name, name) == 0) {
@@ -149,14 +145,8 @@ bool MqttsnClient::registerUserMsgCallBack(message_type type, UserCBHdler cbFunc
 void MqttsnClient::send_message() {
     message_header* hdr = reinterpret_cast<message_header*>(_message_buffer);
     int16_t rc;
-    D_PRINT("Send ");
-    D_PRINT(message_names[hdr->type]);
-    D_PRINT(" Len: ");
-    D_PRINT((int)hdr->length);
-    D_PRINT(" Data");
-    for(int i=0 ;i < hdr->length;i++ )
-        D_PRINT_HEX((int)_message_buffer[i]);
-    D_PRINTLN("");
+
+    printOutMqttMsg(_message_buffer,hdr->length,false);
 
     rc = _networkIf.send(_message_buffer, hdr->length,_gtwInfo._gtwAddr);
     if(rc < 0){
@@ -196,6 +186,7 @@ void MqttsnClient::gwinfo_handler(const uint8_t *m, uint8_t msgLen) {
 }
 
 void MqttsnClient::connack_handler(const uint8_t *msg, uint8_t msgLen) {
+    _timers[KEEP_ALIVE_TIMER].start(_mqttConfig.keepAlive*1000);
     CHANGESTATE(CONNECTED);
 }
 
@@ -256,6 +247,7 @@ void MQTTSN::pubcomp_handler(const uint8_t *msg, uint8_t msgLen) {
 #endif
 
 void MqttsnClient::pingreq_handler(const uint8_t *msg, uint8_t msgLen) {
+
     pingresp();
 }
 
@@ -615,6 +607,7 @@ void MqttsnClient::pingresp() {
 /////////////////////////////Timeout Handlers/////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 void MqttsnClient::handleSearchGTWTimeout(){
+    ///6.1Gateway Advertisement and Discovery\todo random delays.
     searchgw(1);
 }
 void MqttsnClient::handleNetMissingTimeout(){
@@ -627,4 +620,7 @@ void MqttsnClient::handleNetMissingTimeout(){
     int16_t rc = initilize();
     if(!rc)
         _timers[NET_MISSING_TIMER].stop();
+}
+void MqttsnClient::handleKeepAliveTimeout(){
+    pingreq(_mqttConfig.nodeId);
 }

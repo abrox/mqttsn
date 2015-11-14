@@ -178,13 +178,13 @@ private:
     };
 
     void handleMsgIn(uint8_t msgLen, message_type msg);
-    uint16_t bswap(const uint16_t val);
     void send_message();
     topic* getTopicByState(RegState s);
     void handleGtwFound(uint8_t id);
     void handlePendingRegistrations();
     void handleSearchGTWTimeout();
     void handleNetMissingTimeout();
+    void handleKeepAliveTimeout();
 
     uint16_t _message_id;
 
@@ -219,6 +219,7 @@ private:
     enum timers{
         GTWSEARCH_TIMER,
         NET_MISSING_TIMER,
+        KEEP_ALIVE_TIMER,
         TIMER_ARRAY_SIZE ///<Number of timers, must be last.
     };
 
@@ -250,4 +251,5 @@ private:
 #define SET_TIMER(handler,isSingleShot){*this,&MqttsnClient::handler,isSingleShot}
 #define CLIENT_TIMERS\
     SET_TIMER(handleSearchGTWTimeout,false),\
-    SET_TIMER(handleNetMissingTimeout,false)
+    SET_TIMER(handleNetMissingTimeout,false),\
+    SET_TIMER(handleKeepAliveTimeout,false)
