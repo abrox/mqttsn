@@ -342,7 +342,7 @@ void MqttsnClient::willtopic(const uint8_t flags, const char* will_topic, const 
         msg->length = sizeof(message_header);
     } else {
         msg_willtopic* msg = reinterpret_cast<msg_willtopic*>(_message_buffer);
-
+        msg->length = sizeof(msg_willtopic) + strlen(will_topic);
         msg->type = update ? WILLTOPICUPD : WILLTOPIC;
         msg->flags = flags;
         strcpy(msg->will_topic, will_topic);
