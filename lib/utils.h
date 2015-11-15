@@ -27,11 +27,11 @@ unsigned long millis();
 int getMilliSpan(int nTimeStart);
 int kbhit(void);
 #ifdef MQTT_DEBUG
-void printOutMqttMsg(const uint8_t * msg, uint8_t len, bool in );
 extern const char* message_names[];
 #endif
 #endif
 
+void printOutMqttMsg(const uint8_t * msg, uint8_t len, bool in );
 uint16_t bswap(const uint16_t val);
 /*======================================
       MACROs for debugging

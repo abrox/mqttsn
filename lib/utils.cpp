@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include"mqttsn.h"
+
 #ifdef MQTT_DEBUG
 const char* message_names[] = {
     "ADVERTISE",
@@ -43,13 +44,64 @@ const char* message_names[] = {
     "WILLMSGUPD",
     "WILLMSGRESP"
 };
+
 const char* RcodeNames[]= {
     "ACCEPTED",
     "REJECTED_CONGESTION",
     "REJECTED_INVALID_TOPIC_ID",
     "REJECTED_NOT_SUPPORTED"
     };
+#endif
+
+///Millisecond counter.
+/// Keep
+unsigned long millis(){
+    timeb tb;
+    ftime(&tb);
+    unsigned long nCount = tb.millitm + (tb.time & 0xfffff) * 1000;
+    return nCount;
+}
+
+int getMilliSpan(int nTimeStart){
+    int nSpan = millis() - nTimeStart;
+    if(nSpan < 0)
+        nSpan += 0x100000 * 1000;
+    return nSpan;
+}
+
+int kbhit(void)
+{
+  struct termios oldt, newt;
+  int ch;
+  int oldf;
+
+  tcgetattr(STDIN_FILENO, &oldt);
+  newt = oldt;
+  newt.c_lflag &= ~(ICANON | ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+
+  ch = getchar();
+
+  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+  fcntl(STDIN_FILENO, F_SETFL, oldf);
+
+  if(ch != EOF)
+  {
+    ungetc(ch, stdin);
+    return 1;
+  }
+
+  return 0;
+}
+#endif //LINUX
+
+uint16_t bswap(const uint16_t val) {
+    return (val << 8) | (val >> 8);
+}
 void printOutMqttMsg(const uint8_t * msg, uint8_t len,bool in ){
+#ifdef MQTT_DEBUG
     message_header const* hdr = reinterpret_cast<message_header const *>(msg);
     if( in )
         printf("IN: ");
@@ -140,7 +192,7 @@ void printOutMqttMsg(const uint8_t * msg, uint8_t len,bool in ){
     case PUBLISH:
     {
         msg_publish const *m = reinterpret_cast< msg_publish const*>(msg);
-        printf("flags: %02x topicId: %d messageID: %d",m->flags, bswap(m->topic_id),bswap(m->message_id));
+        printf("flags: %02x topicId: %d messageID: %d Data: ",m->flags, bswap(m->topic_id),bswap(m->message_id));
         for(int i=0 ;i < (hdr->length-sizeof(msg_publish));i++ )
                   printf("%02x",m->data[i]);
         printf("\n");
@@ -182,53 +234,6 @@ void printOutMqttMsg(const uint8_t * msg, uint8_t len,bool in ){
         printf("\n");
         break;
     }
-
-}
 #endif
-
-///Millisecond counter.
-/// Keep
-unsigned long millis(){
-    timeb tb;
-    ftime(&tb);
-    unsigned long nCount = tb.millitm + (tb.time & 0xfffff) * 1000;
-    return nCount;
-}
-
-int getMilliSpan(int nTimeStart){
-    int nSpan = millis() - nTimeStart;
-    if(nSpan < 0)
-        nSpan += 0x100000 * 1000;
-    return nSpan;
-}
-
-int kbhit(void)
-{
-  struct termios oldt, newt;
-  int ch;
-  int oldf;
-
-  tcgetattr(STDIN_FILENO, &oldt);
-  newt = oldt;
-  newt.c_lflag &= ~(ICANON | ECHO);
-  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
-
-  ch = getchar();
-
-  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-  fcntl(STDIN_FILENO, F_SETFL, oldf);
-
-  if(ch != EOF)
-  {
-    ungetc(ch, stdin);
-    return 1;
-  }
-
-  return 0;
-}
-#endif //LINUX
-uint16_t bswap(const uint16_t val) {
-    return (val << 8) | (val >> 8);
+    return;
 }
