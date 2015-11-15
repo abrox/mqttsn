@@ -93,7 +93,7 @@ public:
 
     uint16_t find_topic_id(const char* name, uint8_t& index);
     bool publish(const uint8_t flags, const uint16_t topic_id, const void* data, const uint8_t data_len);
-    bool subscribe_by_name(const uint8_t flags, const char* topic_name);
+    bool subscribe_by_name(const uint8_t flags, const char* topic_name, TopicHdlr topicHdlr=NULL);
 
 #ifndef UNIT_TESTS
 protected:
@@ -150,18 +150,23 @@ private:
 #endif
     enum RegState{
         FREE,
-        WAIT_SEND,
-        WAIT_REG,
-        REGISTERED
+        PUB_WAIT_SEND,
+        PUB_WAIT_REG,
+        PUB_REGISTERED,
+
+        SUB_WAIT_SEND,
+        SUB_WAIT_REG,
+        SUB_REGISTERED
     };
 
     struct topic {
         const char* name;
-        uint16_t id;
-        TopicHdlr hdlr;
-        RegState  state;
+        uint8_t     flags;
+        uint16_t    id;
+        TopicHdlr   hdlr;
+        RegState    state;
         //Init corret values
-        topic():name(NULL),id(0),hdlr(NULL),state(FREE){;}
+        topic():name(NULL),flags(0),id(0),hdlr(NULL),state(FREE){;}
     };
 
     enum FSMState{

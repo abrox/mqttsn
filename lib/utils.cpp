@@ -1,5 +1,6 @@
 #include "mqttclientdefs.h"
 #include "utils.h"
+#include"mqttsn.h"
 
 #ifdef LINUX
 #include <iostream>
@@ -9,49 +10,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include"mqttsn.h"
 
-#ifdef MQTT_DEBUG
-const char* message_names[] = {
-    "ADVERTISE",
-    "SEARCHGW",
-    "GWINFO",
-    "unknown",
-    "CONNECT",
-    "CONNACK",
-    "WILLTOPICREQ",
-    "WILLTOPIC",
-    "WILLMSGREQ",
-    "WILLMSG",
-    "REGISTER",
-    "REGACK",
-    "PUBLISH",
-    "PUBACK",
-    "PUBCOMP",
-    "PUBREC",
-    "PUBREL",
-    "unknown",
-    "SUBSCRIBE",
-    "SUBACK",
-    "UNSUBSCRIBE",
-    "UNSUBACK",
-    "PINGREQ",
-    "PINGRESP",
-    "DISCONNECT",
-    "unknown",
-    "WILLTOPICUPD",
-    "WILLTOPICRESP",
-    "WILLMSGUPD",
-    "WILLMSGRESP"
-};
-
-const char* RcodeNames[]= {
-    "ACCEPTED",
-    "REJECTED_CONGESTION",
-    "REJECTED_INVALID_TOPIC_ID",
-    "REJECTED_NOT_SUPPORTED"
-    };
-#endif
 
 ///Millisecond counter.
 /// Keep
@@ -97,22 +56,75 @@ int kbhit(void)
 }
 #endif //LINUX
 
+
+
 uint16_t bswap(const uint16_t val) {
     return (val << 8) | (val >> 8);
 }
+
+#ifdef MQTT_DEBUG
+const char* message_names[] = {
+    "ADVERTISE",
+    "SEARCHGW",
+    "GWINFO",
+    "unknown",
+    "CONNECT",
+    "CONNACK",
+    "WILLTOPICREQ",
+    "WILLTOPIC",
+    "WILLMSGREQ",
+    "WILLMSG",
+    "REGISTER",
+    "REGACK",
+    "PUBLISH",
+    "PUBACK",
+    "PUBCOMP",
+    "PUBREC",
+    "PUBREL",
+    "unknown",
+    "SUBSCRIBE",
+    "SUBACK",
+    "UNSUBSCRIBE",
+    "UNSUBACK",
+    "PINGREQ",
+    "PINGRESP",
+    "DISCONNECT",
+    "unknown",
+    "WILLTOPICUPD",
+    "WILLTOPICRESP",
+    "WILLMSGUPD",
+    "WILLMSGRESP"
+};
+#ifndef ARDUINO
+const char* RcodeNames[]= {
+    "ACCEPTED",
+    "REJECTED_CONGESTION",
+    "REJECTED_INVALID_TOPIC_ID",
+    "REJECTED_NOT_SUPPORTED"
+    };
+#endif
+#endif
+
 void printOutMqttMsg(const uint8_t * msg, uint8_t len,bool in ){
 #ifdef MQTT_DEBUG
     message_header const* hdr = reinterpret_cast<message_header const *>(msg);
     if( in )
-        printf("IN: ");
+        D_PRINT("IN: ");
     else
-        printf("OUT:");
+        D_PRINT("OUT:");
 
     if( len < MSG_MIN_LEN ){
-        printf("Not mqtt msg\n");
+        D_PRINTLN("Not mqtt msg");
         return;
     }
 
+#ifdef ARDUINO
+    D_PRINT(message_names[hdr->type]);
+    D_PRINT(" Data");
+    for(int i=0 ;i < hdr->length;i++ )
+        D_PRINT_HEX((int)msg[i]);
+    D_PRINTLN("");
+#else
     printf("%d(%s)\t",hdr->type,message_names[hdr->type]);
 
     switch (hdr->type) {
@@ -234,6 +246,7 @@ void printOutMqttMsg(const uint8_t * msg, uint8_t len,bool in ){
         printf("\n");
         break;
     }
-#endif
+#endif //LINUX
+#endif //MQTT_DEBUG
     return;
 }

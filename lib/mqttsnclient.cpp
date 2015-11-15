@@ -203,7 +203,7 @@ void MqttsnClient::willmsgreq_handler(const uint8_t *msg, uint8_t msgLen) {
 void MqttsnClient::regack_handler(const uint8_t *m, uint8_t msgLen) {
     const msg_regack *msg=reinterpret_cast<const msg_regack*>(m);
     //Only one should pending so this must find it
-    topic*       t = getTopicByState(WAIT_REG);
+    topic*       t = getTopicByState(PUB_WAIT_REG);
     uint16_t msgId = bswap(msg->message_id);
     uint16_t    id = bswap(msg->topic_id);
 
@@ -217,7 +217,7 @@ void MqttsnClient::regack_handler(const uint8_t *m, uint8_t msgLen) {
 
     switch(msg->return_code){
        case ACCEPTED:
-        t->state = REGISTERED;
+        t->state = PUB_REGISTERED;
         break;
     case REJECTED_CONGESTION:
         //If the return code was “rejected: congestion”, the client should wait for a time T W AIT before restarting the registration procedure
@@ -251,7 +251,37 @@ void MqttsnClient::pingreq_handler(const uint8_t *msg, uint8_t msgLen) {
     pingresp();
 }
 
-void MqttsnClient::suback_handler(const uint8_t *msg, uint8_t msgLen) {
+void MqttsnClient::suback_handler(const uint8_t *m, uint8_t msgLen) {
+
+    const msg_suback *msg=reinterpret_cast<const msg_suback*>(m);
+    //Only one should pending so this must find it
+    topic*       t = getTopicByState(SUB_WAIT_REG);
+    uint16_t msgId = bswap(msg->message_id);
+    uint16_t    id = bswap(msg->topic_id);
+
+    if(t->id != msgId){
+        //Bad things has happened what to do ?
+        //todo handle somehow
+        return;
+    }
+
+    t->id = id;
+
+    switch(msg->return_code){
+       case ACCEPTED:
+        t->state = SUB_REGISTERED;
+        break;
+    case REJECTED_CONGESTION:
+        //If the return code was “rejected: congestion”, the client should wait for a time T W AIT before restarting the registration procedure
+        break;
+    default:
+
+        break;
+
+    }
+
+    if(t->hdlr)
+        t->hdlr(this,id,SUBACK,reinterpret_cast<const uint8_t*>(t->name),strlen(t->name),msg->return_code);
 }
 
 void MqttsnClient::unsuback_handler(const uint8_t *msg, uint8_t msgLen) {
@@ -265,19 +295,24 @@ void MqttsnClient::pingresp_handler(const uint8_t *msg, uint8_t msgLen) {
 
 void MqttsnClient::publish_handler(const uint8_t *m, uint8_t msgLen) {
     const msg_publish *msg=reinterpret_cast<const msg_publish*>(m);
-    if (msg->flags & FLAG_QOS_1) {
-        return_code_t ret = REJECTED_INVALID_TOPIC_ID;
-        const uint16_t topic_id = bswap(msg->topic_id);
+    topic*            t=NULL;
+    return_code_t     ret = REJECTED_INVALID_TOPIC_ID;
+    const uint16_t    topic_id = bswap(msg->topic_id);
 
-        for (uint8_t i = 0; i < MAX_TOPICS; ++i) {
-            if (topic_table[i].id == topic_id) {
-                ret = ACCEPTED;
-                break;
-            }
+    for (uint8_t i = 0; i < MAX_TOPICS; ++i) {
+        if (topic_table[i].id == topic_id) {
+            t= &topic_table[i];
+            ret = ACCEPTED;
+            break;
         }
-
-        puback(msg->topic_id, msg->message_id, ret);
     }
+
+    if (msg->flags & FLAG_QOS_1) {
+        puback(topic_id, bswap(msg->message_id), ret);
+    }
+
+    if( t && t->hdlr)///\todo can message data be char or unsigned char in both places, yes i quess
+        t->hdlr(this,topic_id,PUBLISH,reinterpret_cast<const uint8_t*>(&msg->data[0]),msgLen-sizeof(msg_publish),0);
 }
 
 //A GW sends a REGISTER message to a client if it wants to inform that client about the topic name and the
@@ -381,27 +416,52 @@ void MqttsnClient::disconnect(const uint16_t duration) {
 }
 
 void MqttsnClient::handlePendingRegistrations(){
-    msg_register* msg = reinterpret_cast<msg_register*>(_message_buffer);
-
     topic * t;
 
     //Only one of the topics can wait registration at time
-    if(getTopicByState(WAIT_REG))
-        return;
+    if( !getTopicByState(PUB_WAIT_REG )){
 
-    t=getTopicByState(WAIT_SEND);
-    if(t){
-        ++_message_id;
-        msg->length = sizeof(msg_register) + strlen(t->name);
-        msg->type = REGISTER;
-        msg->topic_id = 0;
-        msg->message_id = bswap(_message_id);
-        strcpy(msg->topic_name, t->name);
+        t=getTopicByState(PUB_WAIT_SEND);
 
-       t->id =_message_id;//Just to find this referense to this.
-       t->state = WAIT_REG;
+        if(t){
+            msg_register* msg = reinterpret_cast<msg_register*>(_message_buffer);
 
-       send_message();
+            ++_message_id;
+            msg->length = sizeof(msg_register) + strlen(t->name);
+            msg->type = REGISTER;
+            msg->topic_id = 0;
+            msg->message_id = bswap(_message_id);
+            strcpy(msg->topic_name, t->name);
+
+            t->id =_message_id;//Just to find this referense to this.
+            t->state = PUB_WAIT_REG;
+
+            send_message();
+        }
+    }
+    //Only one of the topics can wait registration at time
+    if( !getTopicByState(SUB_WAIT_REG )){
+
+        t=getTopicByState(SUB_WAIT_SEND);
+
+        if(t){
+            msg_subscribe* msg = reinterpret_cast<msg_subscribe*>(_message_buffer);
+
+            ++_message_id;
+            // The -2 here is because we're unioning a 0-length member (topic_name)
+            // with a uint16_t in the msg_subscribe struct.
+            msg->length = sizeof(msg_subscribe) + strlen(t->name) - 2;
+            msg->type = SUBSCRIBE;
+            msg->flags = t->flags;
+            msg->message_id = bswap(_message_id);
+            msg->topic_id = 0;
+            strcpy(msg->topic_name, t->name);
+
+            t->id =_message_id;//Just to find this referense to this.
+            t->state = SUB_WAIT_REG;
+
+            send_message();
+        }
     }
 }
 
@@ -424,7 +484,7 @@ bool MqttsnClient::register_topic(const char* name,TopicHdlr topicHdlr) {
     t->name  = name;
     t->id    = 0;
     t->hdlr  = topicHdlr;
-    t->state = WAIT_SEND;
+    t->state = PUB_WAIT_SEND;
 
     return true;
 }
@@ -504,27 +564,20 @@ void MqttsnClient::puback(const uint16_t topic_id, const uint16_t message_id, co
     send_message();
 }
 
-bool MqttsnClient::subscribe_by_name(const uint8_t flags, const char* topic_name) {
+bool MqttsnClient::subscribe_by_name(const uint8_t flags, const char* topic_name,TopicHdlr topicHdlr) {
     if( !topic_name || strlen(topic_name) > MAX_BUFFER_SIZE - sizeof(msg_subscribe))
         return false;
 
-    ++_message_id;
+    topic * t=getTopicByState(FREE);
 
-    msg_subscribe* msg = reinterpret_cast<msg_subscribe*>(_message_buffer);
+    if(!t)
+        return false;
 
-    // The -2 here is because we're unioning a 0-length member (topic_name)
-    // with a uint16_t in the msg_subscribe struct.
-    msg->length = sizeof(msg_subscribe) + strlen(topic_name) - 2;
-    msg->type = SUBSCRIBE;
-    msg->flags = (flags & QOS_MASK) | FLAG_TOPIC_NAME;
-    msg->message_id = bswap(_message_id);
-    strcpy(msg->topic_name, topic_name);
-
-    send_message();
-
-    if ((flags & QOS_MASK) == FLAG_QOS_1 || (flags & QOS_MASK) == FLAG_QOS_2) {
-        ;//todo handle pending response
-    }
+    t->name  = topic_name;
+    t->id    = 0;
+    t->flags = (flags & QOS_MASK) | FLAG_TOPIC_NAME;
+    t->hdlr  = topicHdlr;
+    t->state = SUB_WAIT_SEND;
 
     return true;
 }
