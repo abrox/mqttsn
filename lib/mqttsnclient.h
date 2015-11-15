@@ -88,11 +88,13 @@ public:
     ///
     int16_t run();
 
-    bool register_topic(const char* name,TopicHdlr topicHdlr=NULL);
+
     bool registerUserMsgCallBack(message_type type, UserCBHdler cbFunct);
 
-    uint16_t find_topic_id(const char* name, uint8_t& index);
-    bool publish(const uint8_t flags, const uint16_t topic_id, const void* data, const uint8_t data_len);
+    bool publish(const uint16_t topic_id, const void* data, const uint8_t data_len);
+
+    bool register_topic(const uint8_t flags,const char* name,TopicHdlr topicHdlr=NULL);
+
     bool subscribe_by_name(const uint8_t flags, const char* topic_name, TopicHdlr topicHdlr=NULL);
 
 #ifndef UNIT_TESTS
@@ -185,6 +187,7 @@ private:
     void handleMsgIn(uint8_t msgLen, message_type msg);
     void send_message();
     topic* getTopicByState(RegState s);
+    topic* getTopicById( uint16_t id );
     void handleGtwFound(uint8_t id);
     void handlePendingRegistrations();
     void handleSearchGTWTimeout();

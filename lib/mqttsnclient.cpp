@@ -121,16 +121,7 @@ int16_t MqttsnClient::run(){
     return 0;
 }
 
-uint16_t MqttsnClient::find_topic_id(const char* name, uint8_t& index) {
-    for (uint8_t i = 0; i < MAX_TOPICS; ++i) {
-        if (strcmp(topic_table[i].name, name) == 0) {
-            index = i;
-            return topic_table[i].id;
-        }
-    }
 
-    return 0xffff;
-}
 bool MqttsnClient::registerUserMsgCallBack(message_type type, UserCBHdler cbFunct){
 
     for (uint8_t i=0;i<HANDLER_ARRAY_SIZE;i++) {
@@ -294,25 +285,16 @@ void MqttsnClient::pingresp_handler(const uint8_t *msg, uint8_t msgLen) {
 }
 
 void MqttsnClient::publish_handler(const uint8_t *m, uint8_t msgLen) {
-    const msg_publish *msg=reinterpret_cast<const msg_publish*>(m);
-    topic*            t=NULL;
-    return_code_t     ret = REJECTED_INVALID_TOPIC_ID;
-    const uint16_t    topic_id = bswap(msg->topic_id);
+    const msg_publish *msg = reinterpret_cast<const msg_publish*>(m);
+    return_code_t     ret  = REJECTED_INVALID_TOPIC_ID;
+    uint16_t          id   =bswap(msg->topic_id);
+    topic              *t  = getTopicById(id);
 
-    for (uint8_t i = 0; i < MAX_TOPICS; ++i) {
-        if (topic_table[i].id == topic_id) {
-            t= &topic_table[i];
-            ret = ACCEPTED;
-            break;
-        }
-    }
+    if( t ) {ret = ACCEPTED;}
 
-    if (msg->flags & FLAG_QOS_1) {
-        puback(topic_id, bswap(msg->message_id), ret);
-    }
+    if (msg->flags & FLAG_QOS_1) {puback(id, bswap(msg->message_id), ret);}
 
-    if( t && t->hdlr)///\todo can message data be char or unsigned char in both places, yes i quess
-        t->hdlr(this,topic_id,PUBLISH,reinterpret_cast<const uint8_t*>(&msg->data[0]),msgLen-sizeof(msg_publish),0);
+    if( t && t->hdlr) {t->hdlr(this,id,PUBLISH,reinterpret_cast<const uint8_t*>(&msg->data[0]),msgLen-sizeof(msg_publish),0);}
 }
 
 //A GW sends a REGISTER message to a client if it wants to inform that client about the topic name and the
@@ -323,13 +305,14 @@ void MqttsnClient::publish_handler(const uint8_t *m, uint8_t msgLen) {
 void MqttsnClient::register_handler(const uint8_t *m, uint8_t msgLen) {
     const msg_register *msg=reinterpret_cast<const msg_register *>(m);
     return_code_t ret = REJECTED_INVALID_TOPIC_ID;
-    uint8_t index;
-    find_topic_id(msg->topic_name, index);
+//    uint8_t index;
 
-    if (index != 0xff) {
-        topic_table[index].id = bswap(msg->topic_id);
-        ret = ACCEPTED;
-    }
+//    find_topic_id(msg->topic_name, index);
+
+//    if (index != 0xff) {
+//        topic_table[index].id = bswap(msg->topic_id);
+//        ret = ACCEPTED;
+//    }
 
     regack(msg->topic_id, msg->message_id, ret);
 }
@@ -474,7 +457,16 @@ MqttsnClient::topic *MqttsnClient::getTopicByState(RegState s)
     return NULL;
 }
 
-bool MqttsnClient::register_topic(const char* name,TopicHdlr topicHdlr) {
+MqttsnClient::topic *MqttsnClient::getTopicById( uint16_t id )
+{
+    for( uint8_t i=0; i < MAX_TOPICS;i++ )
+        if( topic_table[i].id==id )
+            return &topic_table[i];
+
+    return NULL;
+}
+
+bool MqttsnClient::register_topic(const uint8_t flags, const char* name,TopicHdlr topicHdlr) {
 
     topic * t=getTopicByState(FREE);
 
@@ -482,6 +474,7 @@ bool MqttsnClient::register_topic(const char* name,TopicHdlr topicHdlr) {
         return false;
 
     t->name  = name;
+    t->flags = flags;
     t->id    = 0;
     t->hdlr  = topicHdlr;
     t->state = PUB_WAIT_SEND;
@@ -501,26 +494,29 @@ void MqttsnClient::regack(const uint16_t topic_id, const uint16_t message_id, co
     send_message();
 }
 
-bool MqttsnClient::publish(const uint8_t flags, const uint16_t topic_id, const void* data, const uint8_t data_len) {
+bool MqttsnClient::publish( const uint16_t topic_id, const void* data, const uint8_t data_len) {
 
     if( data_len > (MAX_BUFFER_SIZE - sizeof(msg_publish)) || (!data && data_len>0))
         return false;
-
+    topic       *t   = getTopicById(topic_id);
     msg_publish* msg = reinterpret_cast<msg_publish*>(_message_buffer);
 
-    msg->length = sizeof(msg_publish) + data_len;
-    msg->type = PUBLISH;
-    msg->flags = flags;
-    msg->topic_id = bswap(topic_id);
-    msg->message_id = (flags & QOS_MASK == FLAG_QOS_0)?0:bswap(++_message_id);
-    memcpy(msg->data, data, data_len);
+    if(t)
+    {
+        msg->length = sizeof(msg_publish) + data_len;
+        msg->type = PUBLISH;
+        msg->flags = t->flags;
+        msg->topic_id = bswap(topic_id);
+        msg->message_id = (t->flags & QOS_MASK == FLAG_QOS_0)?0:bswap(++_message_id);
+        memcpy(msg->data, data, data_len);
 
-    send_message();
+        send_message();
 
-    if ((flags & QOS_MASK) == FLAG_QOS_1 || (flags & QOS_MASK) == FLAG_QOS_2) {
-        ;//todo handle waiting response !
+        if ((t->flags & QOS_MASK) == FLAG_QOS_1 || (t->flags & QOS_MASK) == FLAG_QOS_2) {
+            ;//todo handle waiting response !
+        }
+        return true;
     }
-    return true;
 }
 
 #ifdef USE_QOS2
