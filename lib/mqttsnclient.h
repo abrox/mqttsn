@@ -211,6 +211,7 @@ private:
     uint8_t _message_buffer[MAX_BUFFER_SIZE];
     uint8_t _response_buffer[MAX_BUFFER_SIZE];
     topic topic_table[MAX_TOPICS];
+    int16_t _pingCount;
 
     typedef  void (MqttsnClient::*MqttMsgHdler)(const uint8_t *msg, uint8_t msgLen);
     struct msgHdlr{

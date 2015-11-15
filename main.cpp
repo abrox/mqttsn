@@ -44,34 +44,84 @@ void handleTopicInfo(MqttsnClient *client,
                            const uint16_t &rCode)
 {
     //cout << "handleTopicInfo"<< message_names[mqttMsg] <<" ID:" << topicId << " Rcode:" << rCode << endl;
-    cout << "handleTopicInfo: "<< mqttMsg<<" ID: " << topicId << "Rcode: " << rCode << endl;
+   // cout << "handleTopicInfo: "<< mqttMsg<<" ID: " << topicId << "Rcode: " << rCode << endl;
     if (mqttMsg == REGACK){
-       cout << " registered:" << endl;
+     //  cout << " registered:" << endl;
        idList.push_back(topicId);
 
     }
 
 }
 
+void handleSeppo(MqttsnClient *client,
+                           const uint16_t &topicId,
+                           const message_type &mqttMsg,
+                           const uint8_t *msg,
+                           uint8_t msgLen,
+                           const uint16_t &rCode)
+{
+    cout << "handleSeppo: "<< message_names[mqttMsg] <<" ID:" << topicId << " Rcode:" << rCode << endl;
+    // cout << "handleTopicInfo: "<< mqttMsg<<" ID: " << topicId << "Rcode: " << rCode << endl;
+    if( mqttMsg == PUBLISH ){
+        for(int i =0; i < msgLen;i++)
+            printf("%c",(char)msg[i]);
+        printf("\n");
+
+
+    }else
+        if(mqttMsg== DISCONNECT){
+            cout << "Seppo is disconnected\n";
+        }
+
+}
+
+void handleTeppo(MqttsnClient *client,
+                           const uint16_t &topicId,
+                           const message_type &mqttMsg,
+                           const uint8_t *msg,
+                           uint8_t msgLen,
+                           const uint16_t &rCode)
+{
+   cout << "handleTeppo: "<< message_names[mqttMsg] <<" ID:" << topicId << " Rcode:" << rCode << endl;
+   // cout << "handleTopicInfo: "<< mqttMsg<<" ID: " << topicId << "Rcode: " << rCode << endl;
+    if( mqttMsg == PUBLISH ){
+        for(int i =0; i < msgLen;i++)
+            printf("%c",(char)msg[i]);
+        printf("\n");
+
+
+    }else
+     if(mqttMsg== DISCONNECT){
+         cout << "Teppos is disconnected\n";
+     }
+
+
+}
+
 void handleConnected(MqttsnClient *client,const uint8_t *msg, uint8_t msgLen){
     cout << "Hello from connected callback :-)"<< endl;
-    client->register_topic("jps/mummo",&handleTopicInfo);
-    client->register_topic("jps/pappa",&handleTopicInfo);
-    client->register_topic("jps/poika",&handleTopicInfo);
-    client->register_topic("jps/hoitaja",&handleTopicInfo);
+    client->register_topic(FLAG_QOS_0,"jps/mummo",&handleTopicInfo);
+    client->register_topic(FLAG_QOS_0,"jps/pappa",&handleTopicInfo);
+    client->register_topic(FLAG_QOS_0,"jps/poika",&handleTopicInfo);
+    //client->register_topic(FLAG_QOS_0,"jps/hoitaja",&handleTopicInfo);
 
-    client->subscribe_by_name(FLAG_QOS_0,"jps/teppo");
-    client->subscribe_by_name(FLAG_QOS_0,"jps/seppo");
+    client->subscribe_by_name(FLAG_QOS_0,"jps/teppo",&handleTeppo);
+    client->subscribe_by_name(FLAG_QOS_0,"jps/seppo",&handleSeppo);
     pubT.start(2000);
 }
 
-
+void handleDisconnected(MqttsnClient *client,const uint8_t *msg, uint8_t msgLen){
+    pubT.stop();
+    idList.clear();
+    cout << "Hello from handleDisconnected";
+}
 void handlePublishToMe(MqttsnClient *client,const uint8_t *msg, uint8_t msgLen){
-   cout << "Hello from handlePublishToMe callback :-)"<< endl;
-   if(msgLen > 7)
-       for(int i =7; i < msgLen;i++)
-           printf("%c",(char)msg[i]);
-   printf("\n");
+//   cout << "Hello from handlePublishToMe callback :-)"<< endl;
+//   if(msgLen > 7)
+//       for(int i =7; i < msgLen;i++)
+//           printf("%c",(char)msg[i]);
+//   printf("\n");
+    ;
 }
 
 const char*mesages[]{
@@ -100,7 +150,7 @@ void publish(){
     for(IdListIter it= idList.begin();
         it != idList.end(); it++)
     {
-        mqttsn.publish(FLAG_QOS_0,*it,mesages[idx%messagesArraySize],strlen(mesages[idx%messagesArraySize]));
+        mqttsn.publish(*it,mesages[idx%messagesArraySize],strlen(mesages[idx%messagesArraySize]));
         idx++;
     }
 }
@@ -112,7 +162,8 @@ int main()
     rc = mqttsn.initilize();
     if(!mqttsn.registerUserMsgCallBack(CONNACK,&handleConnected))
         cout << "Callbackregister failed?"<< endl;
-    if(!mqttsn.registerUserMsgCallBack(PUBLISH,&handlePublishToMe))
+
+    if(!mqttsn.registerUserMsgCallBack(DISCONNECT,&handleDisconnected))
         cout << "Callbackregister failed?"<< endl;
 
         while (!kbhit()) {

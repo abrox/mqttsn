@@ -43,7 +43,8 @@ _fsmStateName(NULL),
 _message_buffer{0},
 _response_buffer{0},
 _mqttMsgHdler{MESSAGE_HANDLER_CALLBACS},
-_timers{CLIENT_TIMERS}
+_timers{CLIENT_TIMERS},
+_pingCount(0)
 {
 
 }
@@ -238,7 +239,7 @@ void MQTTSN::pubcomp_handler(const uint8_t *msg, uint8_t msgLen) {
 #endif
 
 void MqttsnClient::pingreq_handler(const uint8_t *msg, uint8_t msgLen) {
-
+   ///\todo handle that we take account only messages from connected gateway.
     pingresp();
 }
 
@@ -268,7 +269,6 @@ void MqttsnClient::suback_handler(const uint8_t *m, uint8_t msgLen) {
     default:
 
         break;
-
     }
 
     if(t->hdlr)
@@ -282,6 +282,7 @@ void MqttsnClient::disconnect_handler(const uint8_t *msg, uint8_t msgLen) {
 }
 
 void MqttsnClient::pingresp_handler(const uint8_t *msg, uint8_t msgLen) {
+     _pingCount--;
 }
 
 void MqttsnClient::publish_handler(const uint8_t *m, uint8_t msgLen) {
@@ -641,8 +642,8 @@ void MqttsnClient::pingreq(const char* client_id) {
     strcpy(msg->client_id, client_id);
 
     send_message();
+    _pingCount++;
 
-     ;//todo handle pending response
 }
 
 void MqttsnClient::pingresp() {
@@ -651,6 +652,7 @@ void MqttsnClient::pingresp() {
     msg->type = PINGRESP;
 
     send_message();
+    _pingCount--;
 }
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////////Timeout Handlers/////////////////////////////////
@@ -671,5 +673,30 @@ void MqttsnClient::handleNetMissingTimeout(){
         _timers[NET_MISSING_TIMER].stop();
 }
 void MqttsnClient::handleKeepAliveTimeout(){
-    pingreq(_mqttConfig.nodeId);
+    if( _pingCount < N_RETRY)
+        pingreq(_mqttConfig.nodeId);
+    else{
+        _pingCount=0;
+        _timers[GTWSEARCH_TIMER].start(T_SEARCH_GW);
+        CHANGESTATE(NOT_CONNECTED);
+        _timers[KEEP_ALIVE_TIMER].stop();
+        ///\todo Maybe just set WAIT_SEND and automatically reconnect.
+        for(int i = 0; i < MAX_TOPICS;i++)
+        {
+            topic_table[i].state = FREE;
+            if(topic_table[i].hdlr)
+                topic_table[i].hdlr(this,topic_table[i].id,DISCONNECT,NULL,0,0);
+            topic_table[i].id    = 0;
+
+        }
+        for (uint8_t i=0;i<HANDLER_ARRAY_SIZE;i++) {
+            if(_mqttMsgHdler[i]._id == DISCONNECT){
+                CALL_ME(this,_mqttMsgHdler[i]._hdlr) (NULL,0);
+                if(_mqttMsgHdler[i]._ucbhlr)
+                    _mqttMsgHdler[i]._ucbhlr(this,NULL,0);
+                break;
+            }
+        }
+
+    }
 }
