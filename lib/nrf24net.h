@@ -10,16 +10,28 @@
     #else
         #include "WProgram.h"
     #endif
-#endif
+
+#include "RF24.h"
+#include "RF24Network.h"
+#include "RF24Mesh.h"
+
+class Nrf24Addr: public NetworkAddr
+{
+
+};
 
 class Nrf24Net : public NetworkIf
 {
 public:
     Nrf24Net();
-    int send(const uint8_t * buffer,uint16_t buffSize,NetworkAddr *addr=NULL){return 1;}
-    int recv(uint8_t * buffer,uint16_t buffSize){return 0;}
+    int send(const uint8_t * buffer,uint16_t buffSize,NetworkAddr *addr=NULL);
+    int recv(uint8_t * buffer,uint16_t buffSize);
     int16_t initilize();
-    NetworkAddr * getLastRecvAddr(){return NULL;}
+    NetworkAddr * getLastRecvAddr();
+private:
+    RF24        _radio;
+    RF24Network _network;
+    RF24Mesh    _mesh;
 };
-
+#endif //Arduino
 #endif // NRF24NET_H
