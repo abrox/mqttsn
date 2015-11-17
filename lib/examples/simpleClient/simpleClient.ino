@@ -80,5 +80,4 @@ void publish(){
 void loop() {
   client.run();
   pubT.run();
-  delay(10);
 }
