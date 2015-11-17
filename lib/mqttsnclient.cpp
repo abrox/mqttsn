@@ -42,9 +42,9 @@ _fsmState(INIT),
 _fsmStateName(NULL),
 _message_buffer{0},
 _response_buffer{0},
+_pingCount(0),
 _mqttMsgHdler{MESSAGE_HANDLER_CALLBACS},
-_timers{CLIENT_TIMERS},
-_pingCount(0)
+_timers{CLIENT_TIMERS}
 {
 
 }
@@ -224,9 +224,6 @@ void MqttsnClient::regack_handler(const uint8_t *m, uint8_t msgLen) {
         t->hdlr(this,id,REGACK,reinterpret_cast<const uint8_t*>(t->name),strlen(t->name),msg->return_code);
 }
 
-void MqttsnClient::puback_handler(const uint8_t *msg, uint8_t msgLen) {
-}
-
 #ifdef USE_QOS2
 void MQTTSN::pubrec_handler(const uint8_t *msg, uint8_t msgLen) {
 }
@@ -274,30 +271,15 @@ void MqttsnClient::suback_handler(const uint8_t *m, uint8_t msgLen) {
     if(t->hdlr)
         t->hdlr(this,id,SUBACK,reinterpret_cast<const uint8_t*>(t->name),strlen(t->name),msg->return_code);
 }
-
+#ifdef EXTENDED_FEAT
 void MqttsnClient::unsuback_handler(const uint8_t *msg, uint8_t msgLen) {
 }
-
-void MqttsnClient::disconnect_handler(const uint8_t *msg, uint8_t msgLen) {
+void MqttsnClient::puback_handler(const uint8_t *msg, uint8_t msgLen) {
 }
-
-void MqttsnClient::pingresp_handler(const uint8_t *msg, uint8_t msgLen) {
-     _pingCount--;
+void MqttsnClient::willtopicresp_handler(const uint8_t *msg, uint8_t msgLen) {
 }
-
-void MqttsnClient::publish_handler(const uint8_t *m, uint8_t msgLen) {
-    const msg_publish *msg = reinterpret_cast<const msg_publish*>(m);
-    return_code_t     ret  = REJECTED_INVALID_TOPIC_ID;
-    uint16_t          id   =bswap(msg->topic_id);
-    topic              *t  = getTopicById(id);
-
-    if( t ) {ret = ACCEPTED;}
-
-    if (msg->flags & FLAG_QOS_1) {puback(id, bswap(msg->message_id), ret);}
-
-    if( t && t->hdlr) {t->hdlr(this,id,PUBLISH,reinterpret_cast<const uint8_t*>(&msg->data[0]),msgLen-sizeof(msg_publish),0);}
+void MqttsnClient::willmsgresp_handler(const uint8_t *msg, uint8_t msgLen) {
 }
-
 //A GW sends a REGISTER message to a client if it wants to inform that client about the topic name and the
 //assigned topic id that it will use later on when sending PUBLISH messages of the corresponding topic name.
 //This happens for example when the client re-connects without having set the “CleanSession” flag or the client has
@@ -318,11 +300,28 @@ void MqttsnClient::register_handler(const uint8_t *m, uint8_t msgLen) {
     regack(msg->topic_id, msg->message_id, ret);
 }
 
-void MqttsnClient::willtopicresp_handler(const uint8_t *msg, uint8_t msgLen) {
+#endif
+void MqttsnClient::disconnect_handler(const uint8_t *msg, uint8_t msgLen) {
 }
 
-void MqttsnClient::willmsgresp_handler(const uint8_t *msg, uint8_t msgLen) {
+void MqttsnClient::pingresp_handler(const uint8_t *msg, uint8_t msgLen) {
+     _pingCount--;
 }
+
+void MqttsnClient::publish_handler(const uint8_t *m, uint8_t msgLen) {
+    const msg_publish *msg = reinterpret_cast<const msg_publish*>(m);
+    return_code_t     ret  = REJECTED_INVALID_TOPIC_ID;
+    uint16_t          id   =bswap(msg->topic_id);
+    topic              *t  = getTopicById(id);
+
+    if( t ) {ret = ACCEPTED;}
+
+    if (msg->flags & FLAG_QOS_1) {puback(id, bswap(msg->message_id), ret);}
+
+    if( t && t->hdlr) {t->hdlr(this,id,PUBLISH,reinterpret_cast<const uint8_t*>(&msg->data[0]),msgLen-sizeof(msg_publish),0);}
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////OUTGOING MQTT MESSAGES/////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
@@ -518,6 +517,7 @@ bool MqttsnClient::publish( const uint16_t topic_id, const void* data, const uin
         }
         return true;
     }
+    return false;
 }
 
 #ifdef USE_QOS2
@@ -579,6 +579,7 @@ bool MqttsnClient::subscribe_by_name(const uint8_t flags, const char* topic_name
     return true;
 }
 
+#ifdef EXTENDED_FEAT
 void MqttsnClient::subscribe_by_id(const uint8_t flags, const uint16_t topic_id) {
     ++_message_id;
 
@@ -634,7 +635,7 @@ void MqttsnClient::unsubscribe_by_id(const uint8_t flags, const uint16_t topic_i
          ;//todo handle pending response
     }
 }
-
+#endif
 void MqttsnClient::pingreq(const char* client_id) {
     msg_pingreq* msg = reinterpret_cast<msg_pingreq*>(_message_buffer);
     msg->length = sizeof(msg_pingreq) + strlen(client_id);
@@ -678,8 +679,15 @@ void MqttsnClient::handleKeepAliveTimeout(){
     else{
         _pingCount=0;
         _timers[GTWSEARCH_TIMER].start(T_SEARCH_GW);
+
+        if( _gtwInfo._gtwAddr ){
+            delete  _gtwInfo._gtwAddr;
+             _gtwInfo._gtwAddr= NULL;
+        }
+
         CHANGESTATE(NOT_CONNECTED);
         _timers[KEEP_ALIVE_TIMER].stop();
+
         ///\todo Maybe just set WAIT_SEND and automatically reconnect.
         for(int i = 0; i < MAX_TOPICS;i++)
         {

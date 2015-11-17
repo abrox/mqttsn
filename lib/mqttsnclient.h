@@ -113,9 +113,11 @@ protected:
     void pubrel();
     void pubcomp();
 #endif
+#ifdef EXTENDED_FEAT
     void subscribe_by_id(const uint8_t flags, const uint16_t topic_id);
     void unsubscribe_by_name(const uint8_t flags, const char* topic_name);
     void unsubscribe_by_id(const uint8_t flags, const uint16_t topic_id);
+#endif
     void pingreq(const char* client_id);
     void pingresp();
     void disconnect(const uint16_t duration);
@@ -129,20 +131,25 @@ protected:
     virtual void willmsgreq_handler(const uint8_t *msg, uint8_t msgLen);
     virtual void regack_handler(const uint8_t *msg, uint8_t msgLen);
     virtual void publish_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void register_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void puback_handler(const uint8_t *msg, uint8_t msgLen);
+
+
 #ifdef USE_QOS2
     virtual void pubrec_handler(const uint8_t *msg, uint8_t msgLen);
     virtual void pubrel_handler(const uint8_t *msg, uint8_t msgLen);
     virtual void pubcomp_handler(const uint8_t *msg, uint8_t msgLen);
 #endif
     virtual void suback_handler(const uint8_t *msg, uint8_t msgLen);
+#ifdef EXTENDED_FEAT
     virtual void unsuback_handler(const uint8_t *msg, uint8_t msgLeng);
+    virtual void puback_handler(const uint8_t *msg, uint8_t msgLen);
+    virtual void willtopicresp_handler(const uint8_t *msg, uint8_t msgLen);
+    virtual void willmsgresp_handler(const uint8_t *msg, uint8_t msgLen);
+    virtual void register_handler(const uint8_t *msg, uint8_t msgLen);
+
+#endif
     virtual void pingreq_handler(const uint8_t *msg, uint8_t msgLen);
     virtual void pingresp_handler(const uint8_t *msg, uint8_t msgLen);
     virtual void disconnect_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void willtopicresp_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void willmsgresp_handler(const uint8_t *msg, uint8_t msgLen);
 
     void regack(const uint16_t topic_id, const uint16_t message_id, const return_code_t return_code);
     void puback(const uint16_t topic_id, const uint16_t message_id, const return_code_t return_code);
@@ -222,7 +229,12 @@ private:
         //it's inpossible to introduse handler array thats not initilized or is wrong size :-)
         msgHdlr(const uint8_t id,MqttMsgHdler hdlr):_id(id),_hdlr(hdlr),_ucbhlr(NULL){;}
     };
+#ifdef EXTENDED_FEAT
     #define HANDLER_ARRAY_SIZE 16
+#else
+    #define HANDLER_ARRAY_SIZE 11
+#endif
+
     msgHdlr _mqttMsgHdler[HANDLER_ARRAY_SIZE];
 
     enum timers{
@@ -245,17 +257,17 @@ private:
 /*0x05 CONNACK*/      SET_HANDLER( CONNACK,      connack_handler),\
 /*0x06 WILLTOPICREQ*/ SET_HANDLER( WILLTOPICREQ, willtopicreq_handler),\
 /*0x08 WILLMSGREQ*/   SET_HANDLER( WILLMSGREQ,   willmsgreq_handler),\
-/*0x0A REGISTER*/     SET_HANDLER( REGISTER,     register_handler),\
+/*0x0A REGISTER       SET_HANDLER( REGISTER,     register_handler),*/\
 /*0x0B REGACK*/       SET_HANDLER( REGACK ,      regack_handler),\
 /*0x0C PUBLISH*/      SET_HANDLER( PUBLISH,      publish_handler),\
-/*0x0D PUBACK*/       SET_HANDLER( PUBACK ,      puback_handler),\
+/*0x0D PUBACK         SET_HANDLER( PUBACK ,      puback_handler),*/\
 /*0x13 SUBACK*/       SET_HANDLER( SUBACK ,      suback_handler),\
-/*0x15 UNSUBACK*/     SET_HANDLER( UNSUBACK,     unsuback_handler),\
+/*0x15 UNSUBACK       SET_HANDLER( UNSUBACK,     unsuback_handler),*/\
 /*0x16 PINGREQ*/      SET_HANDLER( PINGREQ ,     pingreq_handler),\
 /*0x17 PINGRESP*/     SET_HANDLER( PINGRESP ,    pingresp_handler),\
 /*0x18 DISCONNECT*/   SET_HANDLER( DISCONNECT,   disconnect_handler),\
-/*0x1B WILLTOPICRESP*/SET_HANDLER( WILLTOPICRESP,willtopicresp_handler),\
-/*0x1D WILLMSGRESP*/  SET_HANDLER( WILLMSGRESP,  willmsgresp_handler)
+/*0x1B WILLTOPICRESP  SET_HANDLER( WILLTOPICRESP,willtopicresp_handler),*/\
+/*0x1D WILLMSGRESP    SET_HANDLER( WILLMSGRESP,  willmsgresp_handler)*/
 
 #define SET_TIMER(handler,isSingleShot){*this,&MqttsnClient::handler,isSingleShot}
 #define CLIENT_TIMERS\
