@@ -27,7 +27,7 @@ IdList idList;
 //}MqttsnConfig;
 
 UdpConfig udpConfig{"225.1.1.1",1884,2000};
-MqttConfig mqttConfig{"Hihhuli",10,true,true,"juu","WIL_MSG_ABC"};
+MqttConfig mqttConfig{"Hihhuli",10,true,true,"jps/will","My will: please enjoy your life and have fun"};
 
 //SerialNet serialNet;
 UdpNet    net(udpConfig);
@@ -60,7 +60,7 @@ void handleSeppo(MqttsnClient *client,
                            uint8_t msgLen,
                            const uint16_t &rCode)
 {
-    cout << "handleSeppo: "<< message_names[mqttMsg] <<" ID:" << topicId << " Rcode:" << rCode << endl;
+    //cout << "handleSeppo: "<< message_names[mqttMsg] <<" ID:" << topicId << " Rcode:" << rCode << endl;
     // cout << "handleTopicInfo: "<< mqttMsg<<" ID: " << topicId << "Rcode: " << rCode << endl;
     if( mqttMsg == PUBLISH ){
         for(int i =0; i < msgLen;i++)
@@ -82,7 +82,7 @@ void handleTeppo(MqttsnClient *client,
                            uint8_t msgLen,
                            const uint16_t &rCode)
 {
-   cout << "handleTeppo: "<< message_names[mqttMsg] <<" ID:" << topicId << " Rcode:" << rCode << endl;
+   //cout << "handleTeppo: "<< message_names[mqttMsg] <<" ID:" << topicId << " Rcode:" << rCode << endl;
    // cout << "handleTopicInfo: "<< mqttMsg<<" ID: " << topicId << "Rcode: " << rCode << endl;
     if( mqttMsg == PUBLISH ){
         for(int i =0; i < msgLen;i++)

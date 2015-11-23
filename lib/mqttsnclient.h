@@ -173,7 +173,7 @@ private:
         uint8_t     flags;
         uint16_t    id;
         TopicHdlr   hdlr;
-        RegState    state;
+        uint8_t    state;
         //Init corret values
         topic():name(NULL),flags(0),id(0),hdlr(NULL),state(FREE){;}
     };
@@ -203,8 +203,6 @@ private:
 
     uint16_t _message_id;
 
-    uint8_t _gateway_id;
-
     NetworkIf &_networkIf;
     struct GtwInfo{
            uint8_t _id;
@@ -213,12 +211,12 @@ private:
     GtwInfo _gtwInfo;
     MqttConfig _mqttConfig;
 
-    FSMState _fsmState;
+    uint8_t _fsmState;
     const char* _fsmStateName;
     uint8_t _message_buffer[MAX_BUFFER_SIZE];
     uint8_t _response_buffer[MAX_BUFFER_SIZE];
     topic topic_table[MAX_TOPICS];
-    int16_t _pingCount;
+    uint8_t _pingCount;
 
     typedef  void (MqttsnClient::*MqttMsgHdler)(const uint8_t *msg, uint8_t msgLen);
     struct msgHdlr{

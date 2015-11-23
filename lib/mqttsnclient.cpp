@@ -34,7 +34,6 @@ THE SOFTWARE.
 
 MqttsnClient::MqttsnClient(NetworkIf &networkIf, const MqttConfig &mqttConfig) :
 _message_id(0),
-_gateway_id(0),
 _networkIf(networkIf),
 _gtwInfo{0xff,NULL},
 _mqttConfig(mqttConfig),
@@ -158,6 +157,7 @@ void MqttsnClient::handleGtwFound(uint8_t id)
     _gtwInfo._gtwAddr = _networkIf.getLastRecvAddr();
     _timers[GTWSEARCH_TIMER].stop();
     connect();
+    _timers[KEEP_ALIVE_TIMER].start(T_NETWORK_FAILED);
     CHANGESTATE(CONNECTING);
 }
 
@@ -674,7 +674,7 @@ void MqttsnClient::handleNetMissingTimeout(){
         _timers[NET_MISSING_TIMER].stop();
 }
 void MqttsnClient::handleKeepAliveTimeout(){
-    if( _pingCount < N_RETRY)
+    if( _pingCount < N_RETRY &&  (_fsmState != CONNECTING) )
         pingreq(_mqttConfig.nodeId);
     else{
         _pingCount=0;

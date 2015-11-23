@@ -12,7 +12,7 @@
 
 
 
-MqttConfig mqttConfig{"Peppuli",10,true,true,"MyWIll_ABC","WIL_MSG_ABC"};
+MqttConfig mqttConfig{"Peppuli",10,true,true,"jps/will","It all over"};
 
 Nrf24Net    net;
 MqttsnClient client(net,mqttConfig);
@@ -72,9 +72,11 @@ void setup() {
 
 }
 
-
+uint16_t val=0;
 void publish(){
-   client.publish(id,"hei",3);
+   String s(val);
+   val++;
+   client.publish(id,s.c_str(),s.length());
 }
 
 void loop() {

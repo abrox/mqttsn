@@ -14,15 +14,16 @@ Nrf24Net::Nrf24Net():_radio(7, 8),_network(_radio),_mesh(_radio, _network)
 int16_t Nrf24Net::initilize(){
 
    // Connect to the mesh
-   if( _mesh.begin() )
+   _mesh.begin();
+   _mesh.update();
       return 0;
-   else
-       return -1;
+
 }
 int Nrf24Net::send(const uint8_t * buffer,uint16_t buffSize,NetworkAddr *addr){
     bool   dataSent;
     uint8_t reTry=3;
-    dataSent = _mesh.write(buffer, 'Q', buffSize);
+
+    _mesh.update();
 
     // If a write fails, check connectivity to the mesh network
     while( (dataSent = _mesh.write(buffer, 'Q', buffSize) != true && reTry-- )){
@@ -34,14 +35,19 @@ int Nrf24Net::send(const uint8_t * buffer,uint16_t buffSize,NetworkAddr *addr){
         break;
     }
 
-    return dataSent?buffSize:-1;
+    return dataSent?buffSize:0;
 }
 int Nrf24Net::recv(uint8_t * buffer,uint16_t buffSize){
     RF24NetworkHeader header;
-    // just something you need to call regulary keep mesh up and running
+    uint16_t count;
 
    _mesh.update();
-    return _network.read(header, buffer, sizeof(buffSize));
+
+   if( _network.available() )
+       return _network.read(header, buffer,buffSize);
+   else
+       return 0;
+
 }
 
 NetworkAddr * Nrf24Net::getLastRecvAddr(){
