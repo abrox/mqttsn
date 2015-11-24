@@ -19,7 +19,7 @@ int16_t Nrf24Net::initilize(){
       return 0;
 
 }
-int Nrf24Net::send(const uint8_t * buffer,uint16_t buffSize,NetworkAddr *addr){
+int Nrf24Net::send(const uint8_t * buffer,const uint16_t buffSize,NetworkAddr *addr){
     bool   dataSent;
     uint8_t reTry=3;
 

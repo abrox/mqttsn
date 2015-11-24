@@ -54,7 +54,7 @@ public:
 
     UdpNet(const UdpConfig &config);
     virtual ~UdpNet();
-    int send(const uint8_t * buffer,uint16_t buffSize,NetworkAddr *addr=NULL);
+    int send(const uint8_t * buffer,const uint16_t buffSize,NetworkAddr *addr=NULL);
     int recv(uint8_t * buffer,uint16_t buffSize);
     int16_t initilize();
     NetworkAddr * getLastRecvAddr();

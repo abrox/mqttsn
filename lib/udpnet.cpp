@@ -81,7 +81,7 @@ void UdpNet::close(){
         }
     }
 }
-int UdpNet::send(const uint8_t * buffer,uint16_t buffSize, NetworkAddr *addr){
+int UdpNet::send(const uint8_t * buffer,const uint16_t buffSize, NetworkAddr *addr){
     int rc;
 
     if(addr)

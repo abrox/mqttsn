@@ -124,32 +124,32 @@ protected:
 
 
 
-    virtual void advertise_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void gwinfo_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void connack_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void willtopicreq_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void willmsgreq_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void regack_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void publish_handler(const uint8_t *msg, uint8_t msgLen);
+     void advertise_handler(const uint8_t *msg);
+     void gwinfo_handler(const uint8_t *msg);
+     void connack_handler(const uint8_t *msg);
+     void willtopicreq_handler(const uint8_t *msg);
+     void willmsgreq_handler(const uint8_t *msg);
+     void regack_handler(const uint8_t *msg);
+     void publish_handler(const uint8_t *msg);
 
 
 #ifdef USE_QOS2
-    virtual void pubrec_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void pubrel_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void pubcomp_handler(const uint8_t *msg, uint8_t msgLen);
+     void pubrec_handler(const uint8_t *msg);
+     void pubrel_handler(const uint8_t *msg);
+     void pubcomp_handler(const uint8_t *msg);
 #endif
-    virtual void suback_handler(const uint8_t *msg, uint8_t msgLen);
+     void suback_handler(const uint8_t *msg);
 #ifdef EXTENDED_FEAT
-    virtual void unsuback_handler(const uint8_t *msg, uint8_t msgLeng);
-    virtual void puback_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void willtopicresp_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void willmsgresp_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void register_handler(const uint8_t *msg, uint8_t msgLen);
+     void unsuback_handler(const uint8_t *msgg);
+     void puback_handler(const uint8_t *msg);
+     void willtopicresp_handler(const uint8_t *msg);
+     void willmsgresp_handler(const uint8_t *msg);
+     void register_handler(const uint8_t *msg);
 
 #endif
-    virtual void pingreq_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void pingresp_handler(const uint8_t *msg, uint8_t msgLen);
-    virtual void disconnect_handler(const uint8_t *msg, uint8_t msgLen);
+     void pingreq_handler(const uint8_t *msg);
+     void pingresp_handler(const uint8_t *msg);
+     void disconnect_handler(const uint8_t *msg);
 
     void regack(const uint16_t topic_id, const uint16_t message_id, const return_code_t return_code);
     void puback(const uint16_t topic_id, const uint16_t message_id, const return_code_t return_code);
@@ -193,7 +193,7 @@ private:
 
     void handleMsgIn(uint8_t msgLen, message_type msg);
     void send_message();
-    topic* getTopicByState(RegState s);
+    topic* getTopicByState(const uint8_t s);
     topic* getTopicById( uint16_t id );
     void handleGtwFound(uint8_t id);
     void handlePendingRegistrations();
@@ -218,7 +218,7 @@ private:
     topic topic_table[MAX_TOPICS];
     uint8_t _pingCount;
 
-    typedef  void (MqttsnClient::*MqttMsgHdler)(const uint8_t *msg, uint8_t msgLen);
+    typedef  void (MqttsnClient::*MqttMsgHdler)(const uint8_t *msg);
     struct msgHdlr{
         const uint8_t _id;
         MqttMsgHdler _hdlr;

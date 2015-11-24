@@ -37,7 +37,7 @@ public:
     ///         In case of error negative number
     ///
     virtual int send(const uint8_t * buffer,
-                     uint16_t buffSize,
+                     const uint16_t buffSize,
                      NetworkAddr *addr=NULL
                      )=0;
 
