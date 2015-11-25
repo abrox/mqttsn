@@ -26,22 +26,25 @@ IdList idList;
 //    const char* willMsg;
 //}MqttsnConfig;
 
+void connectStateHandler( MqttsnClient *client, const message_type mqttMsg);
+
+
 UdpConfig udpConfig{"225.1.1.1",1884,2000};
 MqttConfig mqttConfig{"Hihhuli",10,true,true,"jps/will","My will: please enjoy your life and have fun"};
 
 //SerialNet serialNet;
 UdpNet    net(udpConfig);
-MqttsnClient mqttsn(net,mqttConfig);
+MqttsnClient mqttsn(net,mqttConfig,&connectStateHandler);
 void publish();
 ATimer pubT(&publish,false);
 
 
 void handleTopicInfo(MqttsnClient *client,
-                           const uint16_t &topicId,
-                           const message_type &mqttMsg,
+                           const uint16_t topicId,
+                           const message_type mqttMsg,
                            const uint8_t *msg,
                            uint8_t msgLen,
-                           const uint16_t &rCode)
+                           const uint16_t rCode)
 {
     //cout << "handleTopicInfo"<< message_names[mqttMsg] <<" ID:" << topicId << " Rcode:" << rCode << endl;
    // cout << "handleTopicInfo: "<< mqttMsg<<" ID: " << topicId << "Rcode: " << rCode << endl;
@@ -54,11 +57,11 @@ void handleTopicInfo(MqttsnClient *client,
 }
 
 void handleSeppo(MqttsnClient *client,
-                           const uint16_t &topicId,
-                           const message_type &mqttMsg,
+                           const uint16_t topicId,
+                           const message_type mqttMsg,
                            const uint8_t *msg,
                            uint8_t msgLen,
-                           const uint16_t &rCode)
+                           const uint16_t rCode)
 {
     //cout << "handleSeppo: "<< message_names[mqttMsg] <<" ID:" << topicId << " Rcode:" << rCode << endl;
     // cout << "handleTopicInfo: "<< mqttMsg<<" ID: " << topicId << "Rcode: " << rCode << endl;
@@ -76,11 +79,11 @@ void handleSeppo(MqttsnClient *client,
 }
 
 void handleTeppo(MqttsnClient *client,
-                           const uint16_t &topicId,
-                           const message_type &mqttMsg,
+                           const uint16_t topicId,
+                           const message_type mqttMsg,
                            const uint8_t *msg,
                            uint8_t msgLen,
-                           const uint16_t &rCode)
+                           const uint16_t rCode)
 {
    //cout << "handleTeppo: "<< message_names[mqttMsg] <<" ID:" << topicId << " Rcode:" << rCode << endl;
    // cout << "handleTopicInfo: "<< mqttMsg<<" ID: " << topicId << "Rcode: " << rCode << endl;
@@ -98,30 +101,24 @@ void handleTeppo(MqttsnClient *client,
 
 }
 
-void handleConnected(MqttsnClient *client,const uint8_t *msg, uint8_t msgLen){
-    cout << "Hello from connected callback :-)"<< endl;
-    client->register_topic(FLAG_QOS_0,"jps/mummo",&handleTopicInfo);
-    client->register_topic(FLAG_QOS_0,"jps/pappa",&handleTopicInfo);
-    client->register_topic(FLAG_QOS_0,"jps/poika",&handleTopicInfo);
-    //client->register_topic(FLAG_QOS_0,"jps/hoitaja",&handleTopicInfo);
+void connectStateHandler( MqttsnClient *client,const message_type mqttMsg){
+    if( mqttMsg == CONNACK){
+        cout << "Hello from connected callback :-)"<< endl;
+        client->register_topic(FLAG_QOS_0,"jps/mummo",&handleTopicInfo);
+        client->register_topic(FLAG_QOS_0,"jps/pappa",&handleTopicInfo);
+        client->register_topic(FLAG_QOS_0,"jps/poika",&handleTopicInfo);
+        //client->register_topic(FLAG_QOS_0,"jps/hoitaja",&handleTopicInfo);
 
-    client->subscribe_by_name(FLAG_QOS_0,"jps/teppo",&handleTeppo);
-    client->subscribe_by_name(FLAG_QOS_0,"jps/seppo",&handleSeppo);
-    pubT.start(2000);
-}
-
-void handleDisconnected(MqttsnClient *client,const uint8_t *msg, uint8_t msgLen){
-    pubT.stop();
-    idList.clear();
-    cout << "Hello from handleDisconnected";
-}
-void handlePublishToMe(MqttsnClient *client,const uint8_t *msg, uint8_t msgLen){
-//   cout << "Hello from handlePublishToMe callback :-)"<< endl;
-//   if(msgLen > 7)
-//       for(int i =7; i < msgLen;i++)
-//           printf("%c",(char)msg[i]);
-//   printf("\n");
-    ;
+        client->subscribe_by_name(FLAG_QOS_0,"jps/teppo",&handleTeppo);
+        client->subscribe_by_name(FLAG_QOS_0,"jps/seppo",&handleSeppo);
+        pubT.start(2000);
+    }
+    else
+    if( mqttMsg == DISCONNECT ){
+        pubT.stop();
+        idList.clear();
+        cout << "Hello from handleDisconnected";
+    }
 }
 
 const char*mesages[]{
@@ -160,11 +157,6 @@ int main()
 {
     int rc;
     rc = mqttsn.initilize();
-    if(!mqttsn.registerUserMsgCallBack(CONNACK,&handleConnected))
-        cout << "Callbackregister failed?"<< endl;
-
-    if(!mqttsn.registerUserMsgCallBack(DISCONNECT,&handleDisconnected))
-        cout << "Callbackregister failed?"<< endl;
 
         while (!kbhit()) {
             mqttsn.run();

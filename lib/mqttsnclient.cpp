@@ -32,7 +32,7 @@ THE SOFTWARE.
 #include "utils.h"
 
 
-MqttsnClient::MqttsnClient(NetworkIf &networkIf, const MqttConfig &mqttConfig) :
+MqttsnClient::MqttsnClient(NetworkIf &networkIf, const MqttConfig &mqttConfig, UserCBHdler userCBHdler) :
 _message_id(0),
 _networkIf(networkIf),
 _gtwInfo{0xff,NULL},
@@ -43,7 +43,8 @@ _message_buffer{0},
 _response_buffer{0},
 _pingCount(0),
 _mqttMsgHdler{MESSAGE_HANDLER_CALLBACS},
-_timers{CLIENT_TIMERS}
+_timers{CLIENT_TIMERS},
+_userCBHdler(userCBHdler)
 {
 
 }
@@ -98,8 +99,6 @@ void MqttsnClient::handleMsgIn(uint8_t msgLen, message_type msg)
     for (uint8_t i=0;i<HANDLER_ARRAY_SIZE;i++) {
         if(_mqttMsgHdler[i]._id == msg){
             CALL_ME(this,_mqttMsgHdler[i]._hdlr) (_response_buffer);
-            if(_mqttMsgHdler[i]._ucbhlr)
-                _mqttMsgHdler[i]._ucbhlr(this,_response_buffer,msgLen);
             break;
         }
     }
@@ -121,17 +120,6 @@ int16_t MqttsnClient::run(){
     return 0;
 }
 
-
-bool MqttsnClient::registerUserMsgCallBack(message_type type, UserCBHdler cbFunct){
-
-    for (uint8_t i=0;i<HANDLER_ARRAY_SIZE;i++) {
-        if(_mqttMsgHdler[i]._id == type){
-           _mqttMsgHdler[i]._ucbhlr = cbFunct;
-            return true;
-        }
-    }
-  return false;
-}
 
 void MqttsnClient::send_message() {
     message_header* hdr = reinterpret_cast<message_header*>(_message_buffer);
@@ -179,6 +167,9 @@ void MqttsnClient::gwinfo_handler(const uint8_t *m) {
 
 void MqttsnClient::connack_handler(const uint8_t *msg) {
     _timers[KEEP_ALIVE_TIMER].start(_mqttConfig.keepAlive*1000);
+    if( _userCBHdler )
+        (*(_userCBHdler))(this,CONNACK);
+
     CHANGESTATE(CONNECTED);
 }
 
@@ -302,6 +293,8 @@ void MqttsnClient::register_handler(const uint8_t *m, uint8_t msgLen) {
 
 #endif
 void MqttsnClient::disconnect_handler(const uint8_t *msg) {
+    if( _userCBHdler )
+        (*(_userCBHdler))(this,DISCONNECT);
 }
 
 void MqttsnClient::pingresp_handler(const uint8_t *msg) {
@@ -700,8 +693,6 @@ void MqttsnClient::handleKeepAliveTimeout(){
         for (uint8_t i=0;i<HANDLER_ARRAY_SIZE;i++) {
             if(_mqttMsgHdler[i]._id == DISCONNECT){
                 CALL_ME(this,_mqttMsgHdler[i]._hdlr) (NULL);
-                if(_mqttMsgHdler[i]._ucbhlr)
-                    _mqttMsgHdler[i]._ucbhlr(this,NULL,0);
                 break;
             }
         }

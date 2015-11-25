@@ -56,14 +56,14 @@ THE SOFTWARE.
 
 class MqttsnClient;
 
-typedef  void (*UserCBHdler)(MqttsnClient *client,const uint8_t *msg, uint8_t msgLen);
+typedef  void (*UserCBHdler)( MqttsnClient *client,const message_type mqttMsg);
 
 typedef  void (*TopicHdlr)(MqttsnClient *client,
-                           const uint16_t &topicId,
-                           const message_type &mqttMsg,
+                           const uint16_t topicId,
+                           const message_type mqttMsg,
                            const uint8_t *msg,
                            uint8_t msgLen,
-                           const uint16_t &rCode);
+                           const uint16_t rCode);
 
 
 class MqttsnClient {
@@ -71,7 +71,8 @@ public:
     ///Construct MqqtClient
     ///
     MqttsnClient(NetworkIf &networkIf,///<NetIf. \note Thus it's reference Networkinterface can't be dekleted before this object !
-                 const MqttConfig &mqttConfig
+                 const MqttConfig &mqttConfig,
+                 UserCBHdler userCBHdler=NULL
                  );
     virtual ~MqttsnClient();
 
@@ -88,8 +89,6 @@ public:
     ///
     int16_t run();
 
-
-    bool registerUserMsgCallBack(message_type type, UserCBHdler cbFunct);
 
     bool publish(const uint16_t topic_id, const void* data, const uint8_t data_len);
 
@@ -222,10 +221,9 @@ private:
     struct msgHdlr{
         const uint8_t _id;
         MqttMsgHdler _hdlr;
-        UserCBHdler  _ucbhlr;
         //By introduse explisit constructor, without defaults,
         //it's inpossible to introduse handler array thats not initilized or is wrong size :-)
-        msgHdlr(const uint8_t id,MqttMsgHdler hdlr):_id(id),_hdlr(hdlr),_ucbhlr(NULL){;}
+        msgHdlr(const uint8_t id,MqttMsgHdler hdlr):_id(id),_hdlr(hdlr){;}
     };
 #ifdef EXTENDED_FEAT
     #define HANDLER_ARRAY_SIZE 16
@@ -243,7 +241,7 @@ private:
     };
 
     ATimer _timers[TIMER_ARRAY_SIZE];
-
+    UserCBHdler _userCBHdler;
 
 };
 #endif

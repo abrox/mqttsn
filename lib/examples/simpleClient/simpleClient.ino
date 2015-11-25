@@ -11,20 +11,20 @@
 #include "mqttsnclient.h"
 
 
-
+void handleConnected( const message_type mqttMsg);
 MqttConfig mqttConfig{"Peppuli",10,true,true,"jps/will","It all over"};
 
 Nrf24Net    net;
-MqttsnClient client(net,mqttConfig);
+MqttsnClient client(net,mqttConfig,&handleConnected);
 ATimer pubT(&publish,false);
 uint16_t id;
 
 void handleSeppo(MqttsnClient *client,
-                           const uint16_t &topicId,
-                           const message_type &mqttMsg,
+                           const uint16_t topicId,
+                           const message_type mqttMsg,
                            const uint8_t *msg,
                            uint8_t msgLen,
-                           const uint16_t &rCode)
+                           const uint16_t rCode)
 {
 
     if( mqttMsg == PUBLISH ){
@@ -37,11 +37,11 @@ void handleSeppo(MqttsnClient *client,
 }
 
 void handleMummo(MqttsnClient *client,
-                           const uint16_t &topicId,
-                           const message_type &mqttMsg,
+                           const uint16_t topicId,
+                           const message_type mqttMsg,
                            const uint8_t *msg,
                            uint8_t msgLen,
-                           const uint16_t &rCode)
+                           const uint16_t rCode)
 {
     //cout << "handleTopicInfo"<< message_names[mqttMsg] <<" ID:" << topicId << " Rcode:" << rCode << endl;
    // cout << "handleTopicInfo: "<< mqttMsg<<" ID: " << topicId << "Rcode: " << rCode << endl;
@@ -51,22 +51,26 @@ void handleMummo(MqttsnClient *client,
 
     }
 }
-void handleConnected(MqttsnClient *client,const uint8_t *msg, uint8_t msgLen){
-    client->register_topic(FLAG_QOS_0,"jps/mummo",&handleMummo);
-    client->subscribe_by_name(FLAG_QOS_0,"jps/seppo",&handleSeppo);
-    pubT.start(2000);
+void handleConnected( MqttsnClient *client, const message_type mqttMsg){
+    if( mqttMsg == CONNACK){
+        client->register_topic(FLAG_QOS_0,"jps/mummo",&handleMummo);
+        client->subscribe_by_name(FLAG_QOS_0,"jps/seppo",&handleSeppo);
+        pubT.start(2000);
+    }
+    else
+    if( mqttMsg== DISCONNECT ){
+        pubT.stop();
+    }
 }
 
-void handleDisconnected(MqttsnClient *client,const uint8_t *msg, uint8_t msgLen){
-    pubT.stop();
-}
+
 void setup() {
   Serial.begin(115200);
   Serial.println(F("Starting"));
   client.initilize();
 
-  client.registerUserMsgCallBack(CONNACK,&handleConnected);
-  client.registerUserMsgCallBack(DISCONNECT,&handleDisconnected);
+ // client.registerUserMsgCallBack(CONNACK,&handleConnected);
+  //client.registerUserMsgCallBack(DISCONNECT,&handleDisconnected);
 
   Serial.println(F("Initilized"));
 
