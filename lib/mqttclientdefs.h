@@ -36,6 +36,6 @@
 ///       maybe it should increase like 5 sec 10 20 1 min...
 #define T_NETWORK_FAILED 5000
 
-//#define MQTT_DEBUG
+#define MQTT_DEBUG
 
 #endif // MQTTCLIENTDEFS_H

@@ -28,11 +28,14 @@ void handleSeppo(MqttsnClient *client,
 {
 
     if( mqttMsg == PUBLISH ){
-        ;
-    }else
-        if(mqttMsg== DISCONNECT){
-            ;
-        }
+        Serial.write(msg,msgLen);
+        Serial.println("");
+    }
+    else
+    if( mqttMsg== DISCONNECT ){
+        Serial.println(F("Disconnected handleSeppo"));
+        pubT.stop();
+    }
 
 }
 
@@ -43,22 +46,26 @@ void handleMummo(MqttsnClient *client,
                            uint8_t msgLen,
                            const uint16_t rCode)
 {
-    //cout << "handleTopicInfo"<< message_names[mqttMsg] <<" ID:" << topicId << " Rcode:" << rCode << endl;
-   // cout << "handleTopicInfo: "<< mqttMsg<<" ID: " << topicId << "Rcode: " << rCode << endl;
-    if (mqttMsg == REGACK){
-     //  cout << " registered:" << endl;
+    if (mqttMsg == REGACK && rCode == ACCEPTED){
       id = topicId;
-
+       Serial.println(F("handleMummo REGACK"));
+    }
+    else
+    if( mqttMsg== DISCONNECT ){
+        Serial.println(F("Disconnected handleMummo"));
+        pubT.stop();
     }
 }
 void handleConnected( MqttsnClient *client, const message_type mqttMsg){
     if( mqttMsg == CONNACK){
         client->register_topic(FLAG_QOS_0,"jps/mummo",&handleMummo);
         client->subscribe_by_name(FLAG_QOS_0,"jps/seppo",&handleSeppo);
-        pubT.start(2000);
+        client->subscribe_by_name(FLAG_QOS_0,"jps/pappa",&handleSeppo);
+        pubT.start(1000);
     }
     else
-    if( mqttMsg== DISCONNECT ){
+    if( mqttMsg == DISCONNECT ){
+        Serial.println(F("Disconnected handleConnected"));
         pubT.stop();
     }
 }
@@ -68,9 +75,6 @@ void setup() {
   Serial.begin(115200);
   Serial.println(F("Starting"));
   client.initilize();
-
- // client.registerUserMsgCallBack(CONNACK,&handleConnected);
-  //client.registerUserMsgCallBack(DISCONNECT,&handleDisconnected);
 
   Serial.println(F("Initilized"));
 
@@ -85,5 +89,6 @@ void publish(){
 
 void loop() {
   client.run();
+  delay(10);
   pubT.run();
 }

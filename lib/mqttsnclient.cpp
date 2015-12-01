@@ -56,6 +56,8 @@ int16_t MqttsnClient::initilize(){
     int16_t rc = _networkIf.initilize();
 
     if(!rc){
+        //Just testing...
+        disconnect(0);
         searchgw(1);
         _timers[GTWSEARCH_TIMER].start(T_SEARCH_GW);
         CHANGESTATE(NOT_CONNECTED);
@@ -94,11 +96,12 @@ int16_t MqttsnClient::receiveMsg(uint8_t * buffer, const uint16_t buffSize, uint
 #define CALL_ME(object,ptrToMember) \
     ((object)->*(ptrToMember))
 
-void MqttsnClient::handleMsgIn(uint8_t msgLen, message_type msg)
+
+void MqttsnClient::handleMsgIn(message_type msg)
 {
     for (uint8_t i=0;i<HANDLER_ARRAY_SIZE;i++) {
         if(_mqttMsgHdler[i]._id == msg){
-            CALL_ME(this,_mqttMsgHdler[i]._hdlr) (_response_buffer);
+            CALL_ME(this,_mqttMsgHdler[i]._hdlr)();
             break;
         }
     }
@@ -107,15 +110,14 @@ void MqttsnClient::handleMsgIn(uint8_t msgLen, message_type msg)
 int16_t MqttsnClient::run(){
     uint8_t msgLen;
     message_type msg;
-    int16_t rc;
 
-    rc = receiveMsg(_response_buffer,MAX_BUFFER_SIZE,msgLen,msg);
-
-    if(rc==OK) handleMsgIn(msgLen, msg);
+    if( receiveMsg(_response_buffer,MAX_BUFFER_SIZE,msgLen,msg) == OK )
+           handleMsgIn(msg);
 
     handlePendingRegistrations();
 
-    for(uint8_t i=0;i< TIMER_ARRAY_SIZE;i++) _timers[i].run();
+    for( uint8_t i=0;i< TIMER_ARRAY_SIZE;i++ )
+         _timers[i].run();
 
     return 0;
 }
@@ -146,45 +148,49 @@ void MqttsnClient::handleGtwFound(uint8_t id)
     _timers[GTWSEARCH_TIMER].stop();
     connect();
     _timers[KEEP_ALIVE_TIMER].start(T_NETWORK_FAILED);
+
     CHANGESTATE(CONNECTING);
 }
 
-void MqttsnClient::advertise_handler(const uint8_t *m) {
-    const msg_advertise *msg = reinterpret_cast<msg_advertise const *>(m);
+void MqttsnClient::advertise_handler() {
+    const msg_advertise *msg = reinterpret_cast<msg_advertise const *>(_response_buffer);
 
-    if(_fsmState == NOT_CONNECTED){
+    if( _fsmState == NOT_CONNECTED ){
         handleGtwFound(msg->gw_id);
     }
 }
 
-void MqttsnClient::gwinfo_handler(const uint8_t *m) {
-   const msg_gwinfo *msg= reinterpret_cast<msg_gwinfo const *>(m);
+void MqttsnClient::gwinfo_handler() {
+   const msg_gwinfo *msg= reinterpret_cast<msg_gwinfo const *>(_response_buffer);
 
-    if(_fsmState == NOT_CONNECTED){
+    if( _fsmState == NOT_CONNECTED ){
         handleGtwFound(msg->gw_id);
     }
 }
 
-void MqttsnClient::connack_handler(const uint8_t *msg) {
-    _timers[KEEP_ALIVE_TIMER].start(_mqttConfig.keepAlive*1000);
-    if( _userCBHdler )
-        (*(_userCBHdler))(this,CONNACK);
+void MqttsnClient::connack_handler() {
+    if(_fsmState != CONNECTED){
+        _timers[KEEP_ALIVE_TIMER].start(_mqttConfig.keepAlive*1000);
 
-    CHANGESTATE(CONNECTED);
+        if( _userCBHdler )
+            (*(_userCBHdler))(this,CONNACK);
+
+        CHANGESTATE(CONNECTED);
+    }
 }
 
-void MqttsnClient::willtopicreq_handler(const uint8_t *msg) {
+void MqttsnClient::willtopicreq_handler() {
     willtopic(FLAG_QOS_0,_mqttConfig.willTopic);
 }
 
-void MqttsnClient::willmsgreq_handler(const uint8_t *msg) {
+void MqttsnClient::willmsgreq_handler() {
     willmsg(_mqttConfig.willMsg,strlen(_mqttConfig.willMsg));
 }
 
 
 
-void MqttsnClient::regack_handler(const uint8_t *m) {
-    const msg_regack *msg=reinterpret_cast<const msg_regack*>(m);
+void MqttsnClient::regack_handler() {
+    const msg_regack *msg=reinterpret_cast<const msg_regack*>(_response_buffer);
     //Only one should pending so this must find it
     topic*       t = getTopicByState(PUB_WAIT_REG);
     uint16_t msgId = bswap(msg->message_id);
@@ -196,11 +202,11 @@ void MqttsnClient::regack_handler(const uint8_t *m) {
         return;
     }
 
-    t->id = id;
 
     switch(msg->return_code){
        case ACCEPTED:
         t->state = PUB_REGISTERED;
+        t->id = id;
         break;
     case REJECTED_CONGESTION:
         //If the return code was “rejected: congestion”, the client should wait for a time T W AIT before restarting the registration procedure
@@ -216,24 +222,24 @@ void MqttsnClient::regack_handler(const uint8_t *m) {
 }
 
 #ifdef USE_QOS2
-void MQTTSN::pubrec_handler(const uint8_t *msg) {
+void MQTTSN::pubrec_handler() {
 }
 
-void MQTTSN::pubrel_handler(const uint8_t *msg) {
+void MQTTSN::pubrel_handler() {
 }
 
-void MQTTSN::pubcomp_handler(const uint8_t *msg) {
+void MQTTSN::pubcomp_handler() {
 }
 #endif
 
-void MqttsnClient::pingreq_handler(const uint8_t *msg) {
+void MqttsnClient::pingreq_handler() {
    ///\todo handle that we take account only messages from connected gateway.
     pingresp();
 }
 
-void MqttsnClient::suback_handler(const uint8_t *m) {
+void MqttsnClient::suback_handler() {
 
-    const msg_suback *msg=reinterpret_cast<const msg_suback*>(m);
+    const msg_suback *msg=reinterpret_cast<const msg_suback*>(_response_buffer);
     //Only one should pending so this must find it
     topic*       t = getTopicByState(SUB_WAIT_REG);
     uint16_t msgId = bswap(msg->message_id);
@@ -245,10 +251,9 @@ void MqttsnClient::suback_handler(const uint8_t *m) {
         return;
     }
 
-    t->id = id;
-
     switch(msg->return_code){
        case ACCEPTED:
+        t->id = id;
         t->state = SUB_REGISTERED;
         break;
     case REJECTED_CONGESTION:
@@ -263,21 +268,21 @@ void MqttsnClient::suback_handler(const uint8_t *m) {
         t->hdlr(this,id,SUBACK,reinterpret_cast<const uint8_t*>(t->name),strlen(t->name),msg->return_code);
 }
 #ifdef EXTENDED_FEAT
-void MqttsnClient::unsuback_handler(const uint8_t *msg) {
+void MqttsnClient::unsuback_handler() {
 }
-void MqttsnClient::puback_handler(const uint8_t *msg) {
+void MqttsnClient::puback_handler() {
 }
-void MqttsnClient::willtopicresp_handler(const uint8_t *msg) {
+void MqttsnClient::willtopicresp_handler() {
 }
-void MqttsnClient::willmsgresp_handler(const uint8_t *msg) {
+void MqttsnClient::willmsgresp_handler() {
 }
 //A GW sends a REGISTER message to a client if it wants to inform that client about the topic name and the
 //assigned topic id that it will use later on when sending PUBLISH messages of the corresponding topic name.
 //This happens for example when the client re-connects without having set the “CleanSession” flag or the client has
 //subscribed to topic names that contain wildcard characters such as # or +.
 ///\todo WIldcard handling missing.
-void MqttsnClient::register_handler(const uint8_t *m, uint8_t msgLen) {
-    const msg_register *msg=reinterpret_cast<const msg_register *>(m);
+void MqttsnClient::register_handler() {
+    const msg_register *msg=reinterpret_cast<const msg_register *>(_response_buffer);
     return_code_t ret = REJECTED_INVALID_TOPIC_ID;
 //    uint8_t index;
 
@@ -292,17 +297,18 @@ void MqttsnClient::register_handler(const uint8_t *m, uint8_t msgLen) {
 }
 
 #endif
-void MqttsnClient::disconnect_handler(const uint8_t *msg) {
+void MqttsnClient::disconnect_handler() {
     if( _userCBHdler )
         (*(_userCBHdler))(this,DISCONNECT);
 }
 
-void MqttsnClient::pingresp_handler(const uint8_t *msg) {
-     _pingCount--;
+void MqttsnClient::pingresp_handler() {
+     if( _pingCount )
+         _pingCount--;
 }
 
-void MqttsnClient::publish_handler(const uint8_t *m) {
-    const msg_publish *msg = reinterpret_cast<const msg_publish*>(m);
+void MqttsnClient::publish_handler() {
+    const msg_publish *msg = reinterpret_cast<const msg_publish*>(_response_buffer);
     return_code_t     ret  = REJECTED_INVALID_TOPIC_ID;
     uint16_t          id   =bswap(msg->topic_id);
     topic              *t  = getTopicById(id);
@@ -392,7 +398,7 @@ void MqttsnClient::disconnect(const uint16_t duration) {
 }
 
 void MqttsnClient::handlePendingRegistrations(){
-    topic * t;
+    topic * t= NULL;
 
     //Only one of the topics can wait registration at time
     if( !getTopicByState(PUB_WAIT_REG )){
@@ -416,7 +422,7 @@ void MqttsnClient::handlePendingRegistrations(){
         }
     }
     //Only one of the topics can wait registration at time
-    if( !getTopicByState(SUB_WAIT_REG )){
+    if( t == NULL && !getTopicByState(SUB_WAIT_REG )){
 
         t=getTopicByState(SUB_WAIT_SEND);
 
@@ -646,14 +652,15 @@ void MqttsnClient::pingresp() {
     msg->type = PINGRESP;
 
     send_message();
-    _pingCount--;
 }
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////////Timeout Handlers/////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 void MqttsnClient::handleSearchGTWTimeout(){
     ///6.1Gateway Advertisement and Discovery\todo random delays.
-    searchgw(1);
+    ///
+    handleGtwFound(1);
+    //searchgw(1);
 }
 void MqttsnClient::handleNetMissingTimeout(){
 
@@ -666,36 +673,36 @@ void MqttsnClient::handleNetMissingTimeout(){
     if(!rc)
         _timers[NET_MISSING_TIMER].stop();
 }
-void MqttsnClient::handleKeepAliveTimeout(){
-    if( _pingCount < N_RETRY &&  (_fsmState != CONNECTING) )
-        pingreq(_mqttConfig.nodeId);
-    else{
-        _pingCount=0;
-        _timers[GTWSEARCH_TIMER].start(T_SEARCH_GW);
+void MqttsnClient::handleGtwLost()
+{
+    _pingCount=0;
+    _timers[GTWSEARCH_TIMER].start(T_SEARCH_GW);
 
-        if( _gtwInfo._gtwAddr ){
-            delete  _gtwInfo._gtwAddr;
-             _gtwInfo._gtwAddr= NULL;
-        }
-
-        CHANGESTATE(NOT_CONNECTED);
-        _timers[KEEP_ALIVE_TIMER].stop();
-
-        ///\todo Maybe just set WAIT_SEND and automatically reconnect.
-        for(int i = 0; i < MAX_TOPICS;i++)
-        {
-            topic_table[i].state = FREE;
-            if(topic_table[i].hdlr)
-                topic_table[i].hdlr(this,topic_table[i].id,DISCONNECT,NULL,0,0);
-            topic_table[i].id    = 0;
-
-        }
-        for (uint8_t i=0;i<HANDLER_ARRAY_SIZE;i++) {
-            if(_mqttMsgHdler[i]._id == DISCONNECT){
-                CALL_ME(this,_mqttMsgHdler[i]._hdlr) (NULL);
-                break;
-            }
-        }
-
+    if( _gtwInfo._gtwAddr ){
+        delete  _gtwInfo._gtwAddr;
+         _gtwInfo._gtwAddr= NULL;
     }
+
+    CHANGESTATE(NOT_CONNECTED);
+    _timers[KEEP_ALIVE_TIMER].stop();
+
+    ///\todo Maybe just set WAIT_SEND and automatically reconnect.
+    for(int i = 0; i < MAX_TOPICS;i++)
+    {
+        topic_table[i].state = FREE;
+        if( topic_table[i].hdlr )
+            topic_table[i].hdlr(this,topic_table[i].id,DISCONNECT,NULL,0,0);
+        topic_table[i].id    = 0;
+    }
+    //Inform disconnect to application.
+    handleMsgIn(DISCONNECT);
+    disconnect(0);
+}
+
+void MqttsnClient::handleKeepAliveTimeout(){
+    if( _fsmState == CONNECTING || _pingCount > N_RETRY )
+        handleGtwLost();
+    else
+    if( _pingCount <= N_RETRY )
+        pingreq(_mqttConfig.nodeId);
 }

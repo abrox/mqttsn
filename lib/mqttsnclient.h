@@ -123,32 +123,32 @@ protected:
 
 
 
-     void advertise_handler(const uint8_t *msg);
-     void gwinfo_handler(const uint8_t *msg);
-     void connack_handler(const uint8_t *msg);
-     void willtopicreq_handler(const uint8_t *msg);
-     void willmsgreq_handler(const uint8_t *msg);
-     void regack_handler(const uint8_t *msg);
-     void publish_handler(const uint8_t *msg);
+     void advertise_handler();
+     void gwinfo_handler();
+     void connack_handler();
+     void willtopicreq_handler();
+     void willmsgreq_handler();
+     void regack_handler();
+     void publish_handler();
 
 
 #ifdef USE_QOS2
-     void pubrec_handler(const uint8_t *msg);
-     void pubrel_handler(const uint8_t *msg);
-     void pubcomp_handler(const uint8_t *msg);
+     void pubrec_handler();
+     void pubrel_handler();
+     void pubcomp_handler();
 #endif
-     void suback_handler(const uint8_t *msg);
+     void suback_handler();
 #ifdef EXTENDED_FEAT
-     void unsuback_handler(const uint8_t *msgg);
-     void puback_handler(const uint8_t *msg);
-     void willtopicresp_handler(const uint8_t *msg);
-     void willmsgresp_handler(const uint8_t *msg);
-     void register_handler(const uint8_t *msg);
+     void unsuback_handler(g);
+     void puback_handler();
+     void willtopicresp_handler();
+     void willmsgresp_handler();
+     void register_handler();
 
 #endif
-     void pingreq_handler(const uint8_t *msg);
-     void pingresp_handler(const uint8_t *msg);
-     void disconnect_handler(const uint8_t *msg);
+     void pingreq_handler();
+     void pingresp_handler();
+     void disconnect_handler();
 
     void regack(const uint16_t topic_id, const uint16_t message_id, const return_code_t return_code);
     void puback(const uint16_t topic_id, const uint16_t message_id, const return_code_t return_code);
@@ -189,8 +189,8 @@ private:
         OK=0,
         NO_MESSAGE=1
     };
-
-    void handleMsgIn(uint8_t msgLen, message_type msg);
+    void handleGtwLost();
+    void handleMsgIn(message_type msg);
     void send_message();
     topic* getTopicByState(const uint8_t s);
     topic* getTopicById( uint16_t id );
@@ -217,7 +217,7 @@ private:
     topic topic_table[MAX_TOPICS];
     uint8_t _pingCount;
 
-    typedef  void (MqttsnClient::*MqttMsgHdler)(const uint8_t *msg);
+    typedef  void (MqttsnClient::*MqttMsgHdler)();
     struct msgHdlr{
         const uint8_t _id;
         MqttMsgHdler _hdlr;

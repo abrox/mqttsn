@@ -37,8 +37,8 @@ INCLUDEPATH += ../atimer/
 #LIBS += -lpthread
 
 QMAKE_CXXFLAGS += -DLINUX
-#QMAKE_CXXFLAGS += -DMQTT_DEBUG
-QMAKE_CXXFLAGS += -DNET_DEBUG
+QMAKE_CXXFLAGS += -DMQTT_DEBUG
+#QMAKE_CXXFLAGS += -DNET_DEBUG
 QMAKE_CXXFLAGS += -std=c++11
 OTHER_FILES += \
     lib/examples/simpleClient/simpleClient.ino \

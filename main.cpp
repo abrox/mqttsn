@@ -104,14 +104,14 @@ void handleTeppo(MqttsnClient *client,
 void connectStateHandler( MqttsnClient *client,const message_type mqttMsg){
     if( mqttMsg == CONNACK){
         cout << "Hello from connected callback :-)"<< endl;
-        client->register_topic(FLAG_QOS_0,"jps/mummo",&handleTopicInfo);
+        //client->register_topic(FLAG_QOS_0,"jps/mummo",&handleTopicInfo);
         client->register_topic(FLAG_QOS_0,"jps/pappa",&handleTopicInfo);
-        client->register_topic(FLAG_QOS_0,"jps/poika",&handleTopicInfo);
+        client->register_topic(FLAG_QOS_0,"jps/seppo",&handleTopicInfo);
         //client->register_topic(FLAG_QOS_0,"jps/hoitaja",&handleTopicInfo);
 
         client->subscribe_by_name(FLAG_QOS_0,"jps/teppo",&handleTeppo);
-        client->subscribe_by_name(FLAG_QOS_0,"jps/seppo",&handleSeppo);
-        pubT.start(2000);
+        //client->subscribe_by_name(FLAG_QOS_0,"jps/seppo",&handleSeppo);
+        pubT.start(500);
     }
     else
     if( mqttMsg == DISCONNECT ){

@@ -32,7 +32,8 @@ int Nrf24Net::send(const uint8_t * buffer,const uint16_t buffSize,NetworkAddr *a
             Serial.println("Renewing Address");
             _mesh.renewAddress();
         }
-        break;
+        else
+            break;
     }
 
     return dataSent?buffSize:0;
