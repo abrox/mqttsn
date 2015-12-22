@@ -28,6 +28,9 @@ public:
     int recv(uint8_t * buffer,uint16_t buffSize);
     int16_t initilize();
     NetworkAddr * getLastRecvAddr();
+
+    void         setNodeId(uint8_t id){_mesh.setNodeID(id);}
+    uint8_t      getNodeId(){return _mesh.getNodeID();}
 private:
     RF24        _radio;
     RF24Network _network;

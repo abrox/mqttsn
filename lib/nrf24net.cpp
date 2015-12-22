@@ -3,12 +3,9 @@
 
 #ifdef ARDUINO
 
-#define nodeID 1
-
 Nrf24Net::Nrf24Net():_radio(7, 8),_network(_radio),_mesh(_radio, _network)
 
 {
-    _mesh.setNodeID(nodeID);
 
 }
 int16_t Nrf24Net::initilize(){
